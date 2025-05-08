@@ -6,7 +6,16 @@ A Model Control Protocol (MCP) server for integrating YOURLS URL shortening with
 
 YOURLS-MCP creates a bridge between [Claude Desktop](https://claude.ai/download) and your self-hosted [YOURLS](https://yourls.org/) URL shortener instance. When configured, it allows Claude to automatically shorten URLs using your personal YOURLS installation.
 
-> **Note**: This repository does not include the YOURLS source code. The YOURLS directory is referenced for development purposes but is not tracked in this repository. You should have your own YOURLS installation to use with this MCP server.
+> **Note**: This repository does not include the YOURLS source code. You should have your own YOURLS installation to use with this MCP server.
+
+## Quick Start
+
+The fastest way to get up and running is with the Node.js implementation:
+
+1. Clone this repository
+2. Copy `config.sample.yaml` to `config.yaml` and configure with your YOURLS details
+3. Add the server to your Claude Desktop configuration
+4. Start using URL shortening directly in Claude Desktop conversations!
 
 ## Features
 
