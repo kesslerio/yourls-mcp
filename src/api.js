@@ -5,6 +5,19 @@ import axios from 'axios';
 import crypto from 'crypto';
 
 /**
+ * Helper function to check for missing plugin errors
+ *
+ * @param {Error} error - The error object to check
+ * @returns {boolean} True if the error indicates a missing plugin
+ */
+function isPluginMissingError(error) {
+  return error.response && 
+    error.response.data && 
+    (error.response.data.message === 'Unknown or missing action' ||
+     error.response.data.message?.includes('Unknown action'));
+}
+
+/**
  * YOURLS API client for interacting with YOURLS URL shortener
  */
 export default class YourlsClient {
@@ -231,10 +244,7 @@ export default class YourlsClient {
       return this.request('shorturl_analytics', params);
     } catch (error) {
       // If the plugin isn't installed, we'll get an error about unknown action
-      if (error.response && 
-          error.response.data && 
-          (error.response.data.message === 'Unknown or missing action' ||
-           error.response.data.message?.includes('Unknown action'))) {
+      if (isPluginMissingError(error)) {
         throw new Error('The shorturl_analytics action is not available. Please install the API ShortURL Analytics plugin.');
       }
       
@@ -254,10 +264,7 @@ export default class YourlsClient {
       return this.request('contract', { url });
     } catch (error) {
       // If the plugin isn't installed, we'll get an error about unknown action
-      if (error.response && 
-          error.response.data && 
-          (error.response.data.message === 'Unknown or missing action' ||
-           error.response.data.message?.includes('Unknown action'))) {
+      if (isPluginMissingError(error)) {
         throw new Error('The contract action is not available. Please install the API Contract plugin.');
       }
       
@@ -285,10 +292,7 @@ export default class YourlsClient {
       return this.request('update', params);
     } catch (error) {
       // If the plugin isn't installed, we'll get an error about unknown action
-      if (error.response && 
-          error.response.data && 
-          (error.response.data.message === 'Unknown or missing action' ||
-           error.response.data.message?.includes('Unknown action'))) {
+      if (isPluginMissingError(error)) {
         throw new Error('The update action is not available. Please install the API Edit URL plugin.');
       }
       
@@ -324,10 +328,7 @@ export default class YourlsClient {
       return this.request('change_keyword', params);
     } catch (error) {
       // If the plugin isn't installed, we'll get an error about unknown action
-      if (error.response && 
-          error.response.data && 
-          (error.response.data.message === 'Unknown or missing action' ||
-           error.response.data.message?.includes('Unknown action'))) {
+      if (isPluginMissingError(error)) {
         throw new Error('The change_keyword action is not available. Please install the API Edit URL plugin.');
       }
       
@@ -354,10 +355,7 @@ export default class YourlsClient {
       return this.request('geturl', params);
     } catch (error) {
       // If the plugin isn't installed, we'll get an error about unknown action
-      if (error.response && 
-          error.response.data && 
-          (error.response.data.message === 'Unknown or missing action' ||
-           error.response.data.message?.includes('Unknown action'))) {
+      if (isPluginMissingError(error)) {
         throw new Error('The geturl action is not available. Please install the API Edit URL plugin.');
       }
       
@@ -377,10 +375,7 @@ export default class YourlsClient {
       return this.request('delete', { shorturl });
     } catch (error) {
       // If the plugin isn't installed, we'll get an error about unknown action
-      if (error.response && 
-          error.response.data && 
-          (error.response.data.message === 'Unknown or missing action' ||
-           error.response.data.message?.includes('Unknown action'))) {
+      if (isPluginMissingError(error)) {
         throw new Error('The delete action is not available. Please install the API Delete plugin.');
       }
       
@@ -402,10 +397,31 @@ export default class YourlsClient {
    * @returns {Promise<object>} API response with list of URLs
    */
   async listUrls({ sortby = 'timestamp', sortorder = 'DESC', offset = 0, perpage = 50, query = '', fields = ['*'] } = {}) {
+    // Validate sortby field
+    const validSortFields = ['keyword', 'url', 'title', 'ip', 'timestamp', 'clicks'];
+    if (sortby && !validSortFields.includes(sortby)) {
+      throw new Error(`Invalid sortby value. Must be one of: ${validSortFields.join(', ')}`);
+    }
+    
+    // Validate sortorder
+    if (sortorder && !['ASC', 'DESC'].includes(sortorder.toUpperCase())) {
+      throw new Error('Invalid sortorder value. Must be ASC or DESC');
+    }
+    
+    // Validate fields
+    if (fields && fields.length > 0 && fields[0] !== '*') {
+      const validFields = ['keyword', 'url', 'title', 'timestamp', 'ip', 'clicks'];
+      const invalidFields = fields.filter(field => !validFields.includes(field));
+      
+      if (invalidFields.length > 0) {
+        throw new Error(`Invalid fields: ${invalidFields.join(', ')}. Valid fields are: ${validFields.join(', ')}`);
+      }
+    }
+    
     try {
       return this.request('list', { 
         sortby, 
-        sortorder, 
+        sortorder: sortorder.toUpperCase(), 
         offset, 
         perpage, 
         query,
@@ -413,10 +429,7 @@ export default class YourlsClient {
       });
     } catch (error) {
       // If the plugin isn't installed, we'll get an error about unknown action
-      if (error.response && 
-          error.response.data && 
-          (error.response.data.message === 'Unknown or missing action' ||
-           error.response.data.message?.includes('Unknown action'))) {
+      if (isPluginMissingError(error)) {
         throw new Error('The list action is not available. Please install the API List Extended plugin.');
       }
       

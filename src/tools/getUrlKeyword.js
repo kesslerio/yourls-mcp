@@ -29,6 +29,11 @@ export default function createGetUrlKeywordTool(yourlsClient) {
     },
     execute: async ({ url, exactly_one = true }) => {
       try {
+        // Normalize boolean parameter if it's passed as a string
+        if (typeof exactly_one === 'string') {
+          exactly_one = exactly_one.toLowerCase() === 'true';
+        }
+        
         const result = await yourlsClient.getUrlKeyword(url, exactly_one);
         
         if (result.message === 'success: found') {
