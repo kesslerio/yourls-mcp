@@ -1,0 +1,9 @@
+{
+  "mcp_servers": [
+    {
+      "name": "yourls",
+      "command": ["python", "/path/to/YOURLS-mcp/yourls_mcp/server.py"],
+      "args": ["--config", "/path/to/yourls-mcp/config.yaml"]
+    }
+  ]
+}
