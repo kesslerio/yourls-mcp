@@ -437,4 +437,72 @@ export default class YourlsClient {
       throw error;
     }
   }
+  
+  /**
+   * Generate a QR code for a short URL
+   * 
+   * @param {string} shorturl - The short URL or keyword
+   * @param {object} [options] - Optional configuration for QR code generation
+   * @param {number} [options.size] - QR code size in pixels
+   * @param {number} [options.border] - Border width
+   * @param {string} [options.ecc] - Error correction level (L, M, Q, H)
+   * @param {string} [options.format] - Image format (default: png)
+   * @returns {Promise<object>} QR code image data as base64 string
+   */
+  async generateQrCode(shorturl, { size, border, ecc, format } = {}) {
+    try {
+      // First check if the shorturl exists
+      await this.expand(shorturl);
+      
+      // Construct the QR code URL (YOURLS-IQRCodes plugin appends .qr to the shorturl)
+      const baseUrl = this.api_url.replace('yourls-api.php', '');
+      let qrUrl = `${baseUrl}${shorturl}.qr`;
+      
+      // Add query parameters if provided
+      const params = new URLSearchParams();
+      if (size) params.append('size', size);
+      if (border) params.append('border', border);
+      if (ecc) params.append('ecc', ecc);
+      if (format) params.append('format', format);
+      
+      const queryString = params.toString();
+      if (queryString) {
+        qrUrl += `?${queryString}`;
+      }
+      
+      // Fetch the QR code image
+      const response = await axios.get(qrUrl, {
+        responseType: 'arraybuffer'
+      });
+      
+      // Convert to base64
+      const base64Image = Buffer.from(response.data, 'binary').toString('base64');
+      
+      // Determine MIME type
+      const contentType = response.headers['content-type'] || 'image/png';
+      
+      return {
+        status: 'success',
+        data: base64Image,
+        contentType: contentType,
+        url: qrUrl
+      };
+    } catch (error) {
+      // If the error is from the expand method (meaning the shorturl doesn't exist)
+      if (error.response && error.response.status === 404) {
+        throw new Error(`The short URL or keyword '${shorturl}' was not found in the database.`);
+      }
+      
+      // If the error is from fetching the QR code (meaning the IQRCodes plugin isn't installed)
+      if (error.response && 
+          (error.response.status === 404 || 
+           error.response.status === 500 || 
+           error.response.status === 501)) {
+        throw new Error('QR code generation is not available. Please install the YOURLS-IQRCodes plugin.');
+      }
+      
+      // For other errors, just throw them
+      throw error;
+    }
+  }
 }

@@ -121,6 +121,26 @@ Daily breakdown:
 - January 7, 2025: 1 click
 ```
 
+### Generating QR Codes for Short URLs
+
+```
+You: Can you generate a QR code for my short URL bysha.pe/docs?
+
+Claude: I've generated a QR code for your short URL:
+
+[QR Code Image for bysha.pe/docs]
+
+This QR code will direct users to bysha.pe/docs when scanned.
+
+You: Can you make that QR code larger and add more error correction?
+
+Claude: I've generated a larger QR code with high error correction:
+
+[Larger QR Code Image with high error correction for bysha.pe/docs]
+
+This QR code is 300 pixels in size and uses H-level error correction, making it more reliable when printed or displayed in challenging conditions.
+```
+
 ## Practical Use Cases
 
 YOURLS-MCP is particularly useful for:
