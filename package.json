@@ -2,18 +2,33 @@
   "name": "yourls-mcp",
   "version": "0.1.0",
   "description": "Model Control Protocol server for YOURLS URL shortening",
-  "main": "yourls-mcp.js",
+  "main": "src/index.js",
   "bin": {
-    "yourls-mcp": "./yourls-mcp.js"
+    "yourls-mcp": "yourls-mcp.js"
   },
   "scripts": {
     "start": "node yourls-mcp.js"
   },
+  "keywords": [
+    "mcp",
+    "yourls",
+    "url-shortener",
+    "claude",
+    "modelcontextprotocol"
+  ],
   "author": "",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kesslerio/yourls-mcp.git"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.11.0",
     "axios": "^1.6.2",
+    "dotenv": "^16.3.1",
     "js-yaml": "^4.1.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
   }
 }

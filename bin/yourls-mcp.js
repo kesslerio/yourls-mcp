@@ -3,7 +3,7 @@
 /**
  * YOURLS-MCP CLI entry point
  */
-const { createServer } = require('./src');
+const { createServer } = require('../src');
 const path = require('path');
 
 // Parse command line arguments

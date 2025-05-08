@@ -1,0 +1,12 @@
+{
+  "mcp_servers": {
+    "yourls": {
+      "command": "/Users/kesslerio/my_new_env/bin/python3",
+      "args": [
+        "/Users/kesslerio/GDrive/Websites/cursor/python/YOURLS-mcp/yourls_mcp/server.py",
+        "--config",
+        "/Users/kesslerio/GDrive/Websites/cursor/python/YOURLS-mcp/config.yaml"
+      ]
+    }
+  }
+}

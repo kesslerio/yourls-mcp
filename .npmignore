@@ -1,0 +1,37 @@
+# Git
+.git
+.github
+.gitignore
+
+# IDE
+.idea
+.vscode
+
+# Config files with sensitive information
+config.yaml
+.env
+CLAUDE.md
+
+# YOURLS directory (reference only, not tracked)
+YOURLS/
+
+# Logs
+*.log
+.claude/
+
+# Tests
+test/
+tests/
+coverage/
+
+# Build artifacts
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.dll
+*.class
+
+# OS specific
+.DS_Store
+Thumbs.db

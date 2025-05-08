@@ -6,16 +6,35 @@ A Model Control Protocol (MCP) server for integrating YOURLS URL shortening with
 
 YOURLS-MCP creates a bridge between [Claude Desktop](https://claude.ai/download) and your self-hosted [YOURLS](https://yourls.org/) URL shortener instance. When configured, it allows Claude to automatically shorten URLs using your personal YOURLS installation.
 
-> **Note**: This repository does not include the YOURLS source code. You should have your own YOURLS installation to use with this MCP server.
-
 ## Quick Start
 
-The fastest way to get up and running is with the Node.js implementation:
+```bash
+# Install globally
+npm install -g yourls-mcp
 
-1. Clone this repository
-2. Copy `config.sample.yaml` to `config.yaml` and configure with your YOURLS details
-3. Add the server to your Claude Desktop configuration
-4. Start using URL shortening directly in Claude Desktop conversations!
+# Or run directly with npx
+npx yourls-mcp@latest
+```
+
+Configure Claude Desktop:
+```json
+{
+  "mcpServers": {
+    "yourls": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "yourls-mcp@latest"
+      ],
+      "env": {
+        "YOURLS_API_URL": "https://your-yourls-domain.com/yourls-api.php",
+        "YOURLS_AUTH_METHOD": "signature",
+        "YOURLS_SIGNATURE_TOKEN": "your-secret-signature-token"
+      }
+    }
+  }
+}
+```
 
 ## Features
 
@@ -24,75 +43,49 @@ The fastest way to get up and running is with the Node.js implementation:
 - Expand shortened URLs to see their destination
 - Retrieve click statistics for your links
 - Custom keyword support
-
-## Requirements
-
-- Python 3.8+
-- A running YOURLS instance with API access
-- Claude Desktop with MCP support
-
-## Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/YOURLS-mcp.git
-cd YOURLS-mcp
-
-# Install dependencies
-pip install -r requirements.txt
-```
+- Secure signature-based authentication
+- Environment variable or config file support
 
 ## Configuration
 
-1. Copy `config.sample.yaml` to `config.yaml`
-2. Edit `config.yaml` with your YOURLS instance details:
-   
-   For signature-based authentication (recommended):
+You can configure YOURLS-MCP using either:
+
+1. **Environment variables** (recommended for Claude Desktop integration):
+   ```
+   YOURLS_API_URL=https://your-yourls-domain.com/yourls-api.php
+   YOURLS_AUTH_METHOD=signature
+   YOURLS_SIGNATURE_TOKEN=your-secret-signature-token
+   ```
+
+2. **Configuration file** (YAML):
    ```yaml
    yourls:
      api_url: "https://your-yourls-domain.com/yourls-api.php"
      auth_method: "signature"
-     signature_token: "your-signature-token"
+     signature_token: "your-secret-signature-token"
    ```
-   
-   Or for username/password authentication:
-   ```yaml
-   yourls:
-     api_url: "https://your-yourls-domain.com/yourls-api.php"
-     auth_method: "password"
-     username: "your-username"
-     password: "your-password" 
-   ```
-
-3. Configure Claude Desktop to use this MCP server by adding to your `claude_desktop_config.json`:
-   ```json
-   {
-     "mcp_servers": {
-       "yourls": {
-         "command": "/full/path/to/python",
-         "args": [
-           "/full/path/to/YOURLS-mcp/yourls_mcp/server.py",
-           "--config",
-           "/full/path/to/YOURLS-mcp/config.yaml"
-         ]
-       }
-     }
-   }
-   ```
-   
-   ⚠️ **Important**: Replace `/full/path/to/python` with the actual path to your Python executable (find with `which python3`) and update the other paths to match your system.
 
 ## Usage
 
 Once configured, Claude will be able to use commands like:
 
-- Shorten a URL
-- Expand a shortened URL
-- Get stats for a short URL
+- "Shorten this URL for me: https://example.com/long-url"
+- "Expand this short URL: https://short.domain/abc"
+- "Get stats for this short URL: https://short.domain/abc"
 
 ## Development
 
-This project is under active development. Contributions are welcome!
+```bash
+# Clone the repository
+git clone https://github.com/kesslerio/yourls-mcp.git
+cd yourls-mcp
+
+# Install dependencies
+npm install
+
+# Start the server
+npm start
+```
 
 ## License
 
