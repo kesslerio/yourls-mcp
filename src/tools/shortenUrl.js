@@ -55,11 +55,31 @@ export default function createShortenUrlTool(yourlsClient) {
           };
         }
       } catch (error) {
+        // Check if this is a ShortShort plugin error (it blocks shortening of already-shortened URLs)
+        if (error.response && 
+            error.response.data && 
+            error.response.data.code === 'error:bypass' && 
+            error.response.data.message && 
+            error.response.data.message.includes('shortshort: URL is a shortened URL')) {
+          
+          return {
+            contentType: 'application/json',
+            content: JSON.stringify({
+              status: 'error',
+              code: 'error:already_shortened',
+              message: 'This URL appears to be a shortened URL already. The ShortShort plugin prevents shortening of already shortened URLs to avoid redirect chains.',
+              originalUrl: url
+            })
+          };
+        }
+        
+        // Handle all other errors
         return {
           contentType: 'application/json',
           content: JSON.stringify({
             status: 'error',
-            message: error.message
+            message: error.message,
+            code: error.response?.data?.code || 'unknown_error'
           })
         };
       }
