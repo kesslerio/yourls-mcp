@@ -1,10 +1,11 @@
 /**
  * Google Analytics URL Shortening tool implementation
  */
-import { validateUrl, validateUtmParameters, sanitizeUtmParameters, createApiResponse } from '../utils.js';
+import { z } from 'zod';
+import { validateUtmParameters, sanitizeUtmParameters } from '../utils.js';
 
 /**
- * Create a URL shortening tool with Google Analytics UTM parameters
+ * Create a tool for shortening URLs with Google Analytics UTM parameters
  * 
  * @param {object} yourlsClient - YOURLS API client
  * @returns {object} Tool definition
@@ -13,57 +14,21 @@ export default function createShortenWithAnalyticsTool(yourlsClient) {
   return {
     name: 'shorten_with_analytics',
     description: 'Shorten a long URL with Google Analytics UTM parameters',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        url: {
-          type: 'string',
-          description: 'The URL to shorten'
-        },
-        source: {
-          type: 'string',
-          description: 'UTM source parameter (required) - identifies the source of traffic (e.g., "google", "newsletter", "twitter")'
-        },
-        medium: {
-          type: 'string',
-          description: 'UTM medium parameter (required) - identifies the marketing medium (e.g., "cpc", "social", "email")'
-        },
-        campaign: {
-          type: 'string',
-          description: 'UTM campaign parameter (required) - identifies the specific campaign (e.g., "summer_sale", "product_launch")'
-        },
-        term: {
-          type: 'string',
-          description: 'UTM term parameter (optional) - identifies paid search terms'
-        },
-        content: {
-          type: 'string',
-          description: 'UTM content parameter (optional) - differentiates ads or links pointing to the same URL'
-        },
-        keyword: {
-          type: 'string',
-          description: 'Optional custom keyword for the short URL'
-        },
-        title: {
-          type: 'string',
-          description: 'Optional title for the URL'
-        }
-      },
-      required: ['url', 'source', 'medium', 'campaign']
+    
+    parameters: {
+      url: z.string().describe('The URL to shorten'),
+      source: z.string().describe('UTM source parameter - identifies the source of traffic (e.g., "google", "newsletter", "twitter")'),
+      medium: z.string().describe('UTM medium parameter - identifies the marketing medium (e.g., "cpc", "social", "email")'),
+      campaign: z.string().describe('UTM campaign parameter - identifies the specific campaign (e.g., "summer_sale", "product_launch")'),
+      term: z.string().optional().describe('UTM term parameter - identifies paid search terms'),
+      content: z.string().optional().describe('UTM content parameter - differentiates ads or links pointing to the same URL'),
+      keyword: z.string().optional().describe('Custom keyword for the short URL'),
+      title: z.string().optional().describe('Title for the URL')
     },
+    
     execute: async ({ url, source, medium, campaign, term, content, keyword, title }) => {
       try {
-        // Validate URL format first
-        try {
-          validateUrl(url);
-        } catch (error) {
-          return createApiResponse(false, {
-            message: error.message,
-            code: 'invalid_url'
-          });
-        }
-        
-        // Create UTM parameters object
+        // Package UTM parameters
         const utmParams = {
           source,
           medium,
@@ -72,37 +37,41 @@ export default function createShortenWithAnalyticsTool(yourlsClient) {
           content
         };
         
-        // Validate UTM parameters
-        try {
-          validateUtmParameters(utmParams);
-        } catch (error) {
-          return createApiResponse(false, {
-            message: error.message,
-            code: 'invalid_utm_params'
-          });
-        }
-        
-        // Call the API client method
+        // Validate, sanitize, and create URL with UTM parameters
         const result = await yourlsClient.shortenWithAnalytics(url, utmParams, keyword, title);
         
         if (result.shorturl) {
-          return createApiResponse(true, {
-            shorturl: result.shorturl,
-            url: result.url || url,
-            title: result.title || title || '',
-            analytics: result.analytics
-          });
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({
+                  status: 'success',
+                  shorturl: result.shorturl,
+                  url: result.url || url,
+                  title: result.title || title || '',
+                  analytics: result.analytics
+                })
+              }
+            ]
+          };
         } else {
-          return createApiResponse(false, {
-            message: result.message || 'Unknown error',
-            code: result.code || 'unknown'
-          });
+          throw new Error(result.message || 'Unknown error');
         }
       } catch (error) {
-        return createApiResponse(false, {
-          message: error.message,
-          code: error.response?.data?.code || 'unknown_error'
-        });
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                status: 'error',
+                message: error.message,
+                code: error.code || 'unknown_error'
+              })
+            }
+          ],
+          isError: true
+        };
       }
     }
   };
