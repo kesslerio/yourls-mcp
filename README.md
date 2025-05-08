@@ -292,6 +292,20 @@ YOURLS-MCP acts as a bridge between Claude Desktop and your YOURLS instance:
 
 The server uses the Model Context Protocol (MCP) standard to communicate with Claude Desktop, allowing seamless integration and natural language interactions with your URL shortener.
 
+## Compatibility with YOURLS Plugins
+
+YOURLS-MCP is designed to work with both standard YOURLS installations and various plugins:
+
+### Supported Plugins
+
+- **API ShortURL Analytics**: For detailed click statistics with date ranges
+- **API Contract**: To check if URLs exist without creating them
+- **API Edit URL**: For updating short URLs and changing keywords
+- **API Delete**: For removing short URLs
+- **API List Extended**: For enhanced URL listing with sorting and filtering
+- **YOURLS-IQRCodes**: For generating QR codes from short URLs
+- **ShortShort**: Properly handles the error when trying to shorten an already shortened URL
+
 ## License
 
 MIT

@@ -188,3 +188,21 @@ If Claude cannot connect to your YOURLS instance, check:
 4. Claude Desktop has been restarted after configuration changes
 
 If errors persist, check the Claude Desktop logs for more detailed error messages related to the MCP server.
+
+### Common Error Messages
+
+#### ShortShort Plugin Errors
+
+If your YOURLS instance has the ShortShort plugin installed, you may encounter the following error when trying to shorten an already-shortened URL:
+
+```
+You: Please shorten this URL for me: https://bit.ly/example
+
+Claude: I tried to shorten that URL, but encountered an issue:
+
+This URL appears to be a shortened URL already. The ShortShort plugin prevents shortening of already shortened URLs to avoid redirect chains.
+
+To fix this, please provide the original (non-shortened) URL instead, or disable the ShortShort plugin in your YOURLS admin dashboard if you need to create redirect chains.
+```
+
+The ShortShort plugin is designed to prevent redirect chains, which can slow down user experience and potentially cause issues with tracking.
