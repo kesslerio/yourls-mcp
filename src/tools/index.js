@@ -12,6 +12,7 @@ import createChangeKeywordTool from './changeKeyword.js';
 import createGetUrlKeywordTool from './getUrlKeyword.js';
 import createDeleteUrlTool from './deleteUrl.js';
 import createListUrlsTool from './listUrls.js';
+import createGenerateQrCodeTool from './generateQrCode.js';
 
 /**
  * Register all tools with the MCP server
@@ -34,6 +35,7 @@ export function registerTools(server, yourlsClient) {
   const getUrlKeywordTool = createGetUrlKeywordTool(yourlsClient);
   const deleteUrlTool = createDeleteUrlTool(yourlsClient);
   const listUrlsTool = createListUrlsTool(yourlsClient);
+  const generateQrCodeTool = createGenerateQrCodeTool(yourlsClient);
   
   // Register core tools
   server.addTool(shortenUrlTool);
@@ -49,4 +51,5 @@ export function registerTools(server, yourlsClient) {
   server.addTool(getUrlKeywordTool);
   server.addTool(deleteUrlTool);
   server.addTool(listUrlsTool);
+  server.addTool(generateQrCodeTool);
 }
