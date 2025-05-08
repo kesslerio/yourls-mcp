@@ -1,123 +1,112 @@
 # YOURLS-MCP Usage Guide
 
-This guide explains how to set up and use the YOURLS-MCP server with Claude Desktop.
+This guide explains how to use YOURLS-MCP with Claude Desktop.
 
-## Installation
+## Setup
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/YOURLS-mcp.git
-   cd YOURLS-mcp
-   ```
+1. Ensure you have [Claude Desktop](https://claude.ai/download) installed.
 
-2. Install the package:
-   ```bash
-   pip install -e .
-   ```
+2. Configure Claude Desktop to use the YOURLS-MCP server by editing your configuration file:
+   - macOS: `~/Library/Application Support/Claude/config.json`
+   - Windows: `%APPDATA%\Claude\config.json`
+   - Linux: `~/.config/Claude/config.json`
 
-3. Create a configuration file:
-   ```bash
-   cp config.sample.yaml config.yaml
-   ```
-
-4. Edit the configuration file with your YOURLS details.
-   
-   For signature-based authentication (recommended for better security):
-   ```yaml
-   yourls:
-     api_url: "https://your-yourls-domain.com/yourls-api.php"
-     auth_method: "signature"
-     signature_token: "your-secret-signature-token" # From YOURLS admin interface
-   ```
-   
-   Or for username/password authentication:
-   ```yaml
-   yourls:
-     api_url: "https://your-yourls-domain.com/yourls-api.php"
-     auth_method: "password"
-     username: "your-username"
-     password: "your-password"
-   ```
-
-## Claude Desktop Configuration
-
-1. Ensure you have Claude Desktop installed from [claude.ai/download](https://claude.ai/download).
-
-2. Configure Claude Desktop to use the YOURLS-MCP server:
-
-   - Find your Claude Desktop configuration file:
-     - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
-     - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
-     - Linux: `~/.config/Claude/claude_desktop_config.json`
-
-   - Add the YOURLS-MCP server configuration:
-     ```json
-     {
-       "mcp_servers": {
-         "yourls": {
-           "command": "/full/path/to/python",
-           "args": [
-             "/full/path/to/YOURLS-mcp/yourls_mcp/server.py",
-             "--config",
-             "/full/path/to/YOURLS-mcp/config.yaml"
-           ]
+3. Add the YOURLS-MCP server configuration:
+   ```json
+   {
+     "mcpServers": {
+       "yourls": {
+         "command": "node",
+         "args": [
+           "/full/path/to/yourls-mcp/yourls-mcp.js"
+         ],
+         "env": {
+           "YOURLS_API_URL": "https://your-yourls-domain.com/yourls-api.php",
+           "YOURLS_AUTH_METHOD": "signature",
+           "YOURLS_SIGNATURE_TOKEN": "your-secret-signature-token"
          }
        }
      }
-     ```
-     
-     ⚠️ **Important**: Replace `/full/path/to/python` with the actual path to your Python executable. You can find this with the command `which python3` in your terminal. Also update all file paths to match your system.
+   }
+   ```
 
-3. Restart Claude Desktop.
+4. Restart Claude Desktop to apply the changes.
 
-## Usage in Claude
+## Using YOURLS with Claude
 
-Once configured, you can ask Claude to shorten URLs using commands like:
-
-- "Please shorten this URL for me: https://example.com/very-long-url"
-- "Expand this short URL: https://short.domain/abc"
-- "How many clicks has this short URL received: https://short.domain/abc"
-
-Claude will use your YOURLS instance to perform these operations.
-
-## Examples
+Once configured, Claude can interact with your YOURLS instance through natural language. Here are some example prompts and how Claude will respond:
 
 ### Shortening a URL
 
 ```
-You: Could you shorten this URL for me? https://example.com/very-long-path-with-many-parameters?param1=value1&param2=value2
+You: Can you shorten this URL for me? https://example.com/very/long/path/with/many/parameters?param1=value1&param2=value2
 
 Claude: I'll shorten that URL for you using your YOURLS instance.
 
-The shortened URL is: https://short.domain/abc
+The shortened URL is: https://yourdomain.com/abc
 ```
 
-### Expanding a URL
+### Shortening with a Custom Keyword
 
 ```
-You: Where does this short URL lead to? https://short.domain/abc
+You: Please create a short URL with the keyword "docs" for https://example.com/documentation
 
-Claude: I'll check where that URL leads to.
+Claude: I've created a short URL with the custom keyword "docs" for you.
 
-The short URL https://short.domain/abc redirects to:
-https://example.com/very-long-path-with-many-parameters?param1=value1&param2=value2
+The shortened URL is: https://yourdomain.com/docs
 ```
 
-### Getting URL statistics
+### Expanding a Short URL
 
 ```
-You: How many clicks has https://short.domain/abc received?
+You: What's the destination of this short URL? https://yourdomain.com/abc
 
-Claude: Let me check the statistics for that short URL.
+Claude: I'll expand that short URL for you.
 
-The URL https://short.domain/abc has received 42 clicks.
+The URL https://yourdomain.com/abc redirects to:
+https://example.com/very/long/path/with/many/parameters?param1=value1&param2=value2
 ```
+
+### Getting Click Statistics
+
+```
+You: How many clicks has my short URL https://yourdomain.com/abc received?
+
+Claude: Let me check the click statistics for that short URL.
+
+The URL https://yourdomain.com/abc has received 42 clicks since it was created.
+```
+
+### Getting Database Statistics
+
+```
+You: What are the overall stats for my YOURLS instance?
+
+Claude: Here are the statistics for your YOURLS instance:
+
+Total links: 157
+Total clicks: 3,429
+```
+
+## Practical Use Cases
+
+YOURLS-MCP is particularly useful for:
+
+1. **Research Sessions**: When Claude helps you research a topic and finds many long URLs, it can automatically provide shortened versions for easier sharing and reference.
+
+2. **Document Preparation**: When drafting documents that need to include URLs, Claude can suggest shortened versions to make the document cleaner and more readable.
+
+3. **Link Management**: Claude can help organize your shortened links by suggesting keywords based on content and providing analytics on existing links.
+
+4. **Social Media Drafting**: When helping draft social media posts, Claude can provide shortened URLs that fit within character limits.
 
 ## Troubleshooting
 
-If you encounter issues:
+If Claude cannot connect to your YOURLS instance, check:
 
-1. Check that your YOURLS instance is accessible and that your API credentials are correct.
-2. Verify that Claude Desktop is correctly configured with the MCP server.
-3. Ensure the `config.yaml` file has the correct settings.
-4. Check Claude Desktop logs for any error messages related to the MCP server.
+1. Your YOURLS server is running and accessible from your machine
+2. The API URL in the configuration is correct
+3. Your authentication credentials are valid
+4. Claude Desktop has been restarted after configuration changes
+
+If errors persist, check the Claude Desktop logs for more detailed error messages related to the MCP server.

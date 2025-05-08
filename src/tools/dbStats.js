@@ -8,7 +8,7 @@
  * @param {object} yourlsClient - YOURLS API client
  * @returns {object} Tool definition
  */
-function createDbStatsTool(yourlsClient) {
+export default function createDbStatsTool(yourlsClient) {
   return {
     name: 'db_stats',
     description: 'Get global statistics for the YOURLS instance',
@@ -52,5 +52,3 @@ function createDbStatsTool(yourlsClient) {
     }
   };
 }
-
-module.exports = createDbStatsTool;

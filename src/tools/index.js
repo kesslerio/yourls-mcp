@@ -1,10 +1,10 @@
 /**
  * Tool registration module
  */
-const createShortenUrlTool = require('./shortenUrl');
-const createExpandUrlTool = require('./expandUrl');
-const createUrlStatsTool = require('./urlStats');
-const createDbStatsTool = require('./dbStats');
+import createShortenUrlTool from './shortenUrl.js';
+import createExpandUrlTool from './expandUrl.js';
+import createUrlStatsTool from './urlStats.js';
+import createDbStatsTool from './dbStats.js';
 
 /**
  * Register all tools with the MCP server
@@ -12,7 +12,7 @@ const createDbStatsTool = require('./dbStats');
  * @param {object} server - MCP server instance
  * @param {object} yourlsClient - YOURLS API client
  */
-function registerTools(server, yourlsClient) {
+export function registerTools(server, yourlsClient) {
   const shortenUrlTool = createShortenUrlTool(yourlsClient);
   const expandUrlTool = createExpandUrlTool(yourlsClient);
   const urlStatsTool = createUrlStatsTool(yourlsClient);
@@ -23,7 +23,3 @@ function registerTools(server, yourlsClient) {
   server.addTool(urlStatsTool);
   server.addTool(dbStatsTool);
 }
-
-module.exports = {
-  registerTools
-};

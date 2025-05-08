@@ -8,7 +8,7 @@
  * @param {object} yourlsClient - YOURLS API client
  * @returns {object} Tool definition
  */
-function createUrlStatsTool(yourlsClient) {
+export default function createUrlStatsTool(yourlsClient) {
   return {
     name: 'url_stats',
     description: 'Get statistics for a shortened URL',
@@ -59,5 +59,3 @@ function createUrlStatsTool(yourlsClient) {
     }
   };
 }
-
-module.exports = createUrlStatsTool;

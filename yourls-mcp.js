@@ -3,24 +3,14 @@
 /**
  * YOURLS-MCP CLI entry point
  */
-const { createServer } = require('./src');
-const path = require('path');
-
-// Parse command line arguments
-const args = process.argv.slice(2);
-let configPath = null;
-const configIndex = args.indexOf('--config');
-
-if (configIndex !== -1 && args.length > configIndex + 1) {
-  configPath = args[configIndex + 1];
-}
+import { createServer } from './src/index.js';
 
 // Create and start server
 try {
-  const server = createServer(configPath);
+  const server = createServer();
   server.listen();
-  console.log('YOURLS-MCP server started');
+  // Don't log to stdout, use stderr for diagnostics
 } catch (error) {
-  console.error(`Error starting YOURLS-MCP server: ${error.message}`);
+  process.stderr.write(`Error starting YOURLS-MCP server: ${error.message}\n`);
   process.exit(1);
 }

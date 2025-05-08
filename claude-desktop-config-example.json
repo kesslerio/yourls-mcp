@@ -1,10 +1,9 @@
 {
   "mcpServers": {
     "yourls": {
-      "command": "npx",
+      "command": "node",
       "args": [
-        "-y",
-        "yourls-mcp@latest"
+        "/path/to/yourls-mcp/yourls-mcp.js"
       ],
       "env": {
         "YOURLS_API_URL": "https://your-yourls-domain.com/yourls-api.php",
