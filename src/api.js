@@ -4,18 +4,8 @@
 import axios from 'axios';
 import crypto from 'crypto';
 
-/**
- * Helper function to check for missing plugin errors
- *
- * @param {Error} error - The error object to check
- * @returns {boolean} True if the error indicates a missing plugin
- */
-function isPluginMissingError(error) {
-  return error.response && 
-    error.response.data && 
-    (error.response.data.message === 'Unknown or missing action' ||
-     error.response.data.message?.includes('Unknown action'));
-}
+// Import utility functions
+import { isPluginMissingError, validateUrl, validateUtmParameters, sanitizeUtmParameters } from './utils.js';
 
 /**
  * YOURLS API client for interacting with YOURLS URL shortener
@@ -576,47 +566,47 @@ export default class YourlsClient {
    * @returns {Promise<object>} API response
    */
   async shortenWithAnalytics(url, utmParams, keyword, title) {
-    // Validate required UTM parameters
-    if (!utmParams.source) {
-      throw new Error('UTM source parameter is required');
-    }
+    // Validate URL format
+    validateUrl(url);
     
-    if (!utmParams.medium) {
-      throw new Error('UTM medium parameter is required');
-    }
+    // Validate and sanitize UTM parameters
+    validateUtmParameters(utmParams);
+    const sanitizedUtmParams = sanitizeUtmParameters(utmParams);
     
-    if (!utmParams.campaign) {
-      throw new Error('UTM campaign parameter is required');
-    }
-    
-    // Build the URL with UTM parameters
+    // Check if final URL exceeds recommended length
     const urlObj = new URL(url);
     
-    // Add UTM parameters
-    urlObj.searchParams.set('utm_source', utmParams.source);
-    urlObj.searchParams.set('utm_medium', utmParams.medium);
-    urlObj.searchParams.set('utm_campaign', utmParams.campaign);
+    // Add sanitized UTM parameters
+    urlObj.searchParams.set('utm_source', sanitizedUtmParams.source);
+    urlObj.searchParams.set('utm_medium', sanitizedUtmParams.medium);
+    urlObj.searchParams.set('utm_campaign', sanitizedUtmParams.campaign);
     
     // Add optional UTM parameters if provided
-    if (utmParams.term) {
-      urlObj.searchParams.set('utm_term', utmParams.term);
+    if (sanitizedUtmParams.term) {
+      urlObj.searchParams.set('utm_term', sanitizedUtmParams.term);
     }
     
-    if (utmParams.content) {
-      urlObj.searchParams.set('utm_content', utmParams.content);
+    if (sanitizedUtmParams.content) {
+      urlObj.searchParams.set('utm_content', sanitizedUtmParams.content);
+    }
+    
+    // Check URL length (common limit is 2048 characters)
+    const finalUrl = urlObj.toString();
+    if (finalUrl.length > 2048) {
+      throw new Error('URL with UTM parameters exceeds recommended length (2048 chars)');
     }
     
     // Create the short URL with the UTM parameters
-    const result = await this.shorten(urlObj.toString(), keyword, title);
+    const result = await this.shorten(finalUrl, keyword, title);
     
     // Add UTM parameters to the response
     if (result.shorturl) {
       result.analytics = {
-        utm_source: utmParams.source,
-        utm_medium: utmParams.medium,
-        utm_campaign: utmParams.campaign,
-        utm_term: utmParams.term || '',
-        utm_content: utmParams.content || ''
+        utm_source: sanitizedUtmParams.source,
+        utm_medium: sanitizedUtmParams.medium,
+        utm_campaign: sanitizedUtmParams.campaign,
+        utm_term: sanitizedUtmParams.term || '',
+        utm_content: sanitizedUtmParams.content || ''
       };
     }
     

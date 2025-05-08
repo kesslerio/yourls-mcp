@@ -1,6 +1,7 @@
 /**
  * Google Analytics URL Shortening tool implementation
  */
+import { validateUrl, validateUtmParameters, sanitizeUtmParameters, createApiResponse } from '../utils.js';
 
 /**
  * Create a URL shortening tool with Google Analytics UTM parameters
@@ -52,6 +53,16 @@ export default function createShortenWithAnalyticsTool(yourlsClient) {
     },
     execute: async ({ url, source, medium, campaign, term, content, keyword, title }) => {
       try {
+        // Validate URL format first
+        try {
+          validateUrl(url);
+        } catch (error) {
+          return createApiResponse(false, {
+            message: error.message,
+            code: 'invalid_url'
+          });
+        }
+        
         // Create UTM parameters object
         const utmParams = {
           source,
@@ -61,39 +72,37 @@ export default function createShortenWithAnalyticsTool(yourlsClient) {
           content
         };
         
+        // Validate UTM parameters
+        try {
+          validateUtmParameters(utmParams);
+        } catch (error) {
+          return createApiResponse(false, {
+            message: error.message,
+            code: 'invalid_utm_params'
+          });
+        }
+        
         // Call the API client method
         const result = await yourlsClient.shortenWithAnalytics(url, utmParams, keyword, title);
         
         if (result.shorturl) {
-          return {
-            contentType: 'application/json',
-            content: JSON.stringify({
-              status: 'success',
-              shorturl: result.shorturl,
-              url: result.url || url,
-              title: result.title || title || '',
-              analytics: result.analytics
-            })
-          };
+          return createApiResponse(true, {
+            shorturl: result.shorturl,
+            url: result.url || url,
+            title: result.title || title || '',
+            analytics: result.analytics
+          });
         } else {
-          return {
-            contentType: 'application/json',
-            content: JSON.stringify({
-              status: 'error',
-              message: result.message || 'Unknown error',
-              code: result.code || 'unknown'
-            })
-          };
+          return createApiResponse(false, {
+            message: result.message || 'Unknown error',
+            code: result.code || 'unknown'
+          });
         }
       } catch (error) {
-        return {
-          contentType: 'application/json',
-          content: JSON.stringify({
-            status: 'error',
-            message: error.message,
-            code: error.response?.data?.code || 'unknown_error'
-          })
-        };
+        return createApiResponse(false, {
+          message: error.message,
+          code: error.response?.data?.code || 'unknown_error'
+        });
       }
     }
   };
