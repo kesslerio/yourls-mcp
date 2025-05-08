@@ -1,6 +1,7 @@
 /**
  * URL Shortening tool implementation
  */
+import { isShortShortError, createShortShortErrorResponse, createApiResponse } from '../utils.js';
 
 /**
  * Create a URL shortening tool
@@ -35,53 +36,28 @@ export default function createShortenUrlTool(yourlsClient) {
         const result = await yourlsClient.shorten(url, keyword, title);
         
         if (result.shorturl) {
-          return {
-            contentType: 'application/json',
-            content: JSON.stringify({
-              status: 'success',
-              shorturl: result.shorturl,
-              url: result.url || url,
-              title: result.title || title || ''
-            })
-          };
+          return createApiResponse(true, {
+            shorturl: result.shorturl,
+            url: result.url || url,
+            title: result.title || title || ''
+          });
         } else {
-          return {
-            contentType: 'application/json',
-            content: JSON.stringify({
-              status: 'error',
-              message: result.message || 'Unknown error',
-              code: result.code || 'unknown'
-            })
-          };
+          return createApiResponse(false, {
+            message: result.message || 'Unknown error',
+            code: result.code || 'unknown'
+          });
         }
       } catch (error) {
-        // Check if this is a ShortShort plugin error (it blocks shortening of already-shortened URLs)
-        if (error.response && 
-            error.response.data && 
-            error.response.data.code === 'error:bypass' && 
-            error.response.data.message && 
-            error.response.data.message.includes('shortshort: URL is a shortened URL')) {
-          
-          return {
-            contentType: 'application/json',
-            content: JSON.stringify({
-              status: 'error',
-              code: 'error:already_shortened',
-              message: 'This URL appears to be a shortened URL already. The ShortShort plugin prevents shortening of already shortened URLs to avoid redirect chains.',
-              originalUrl: url
-            })
-          };
+        // Check if this is a ShortShort plugin error (prevents shortening of already-shortened URLs)
+        if (isShortShortError(error)) {
+          return createApiResponse(false, createShortShortErrorResponse(url, keyword));
         }
         
         // Handle all other errors
-        return {
-          contentType: 'application/json',
-          content: JSON.stringify({
-            status: 'error',
-            message: error.message,
-            code: error.response?.data?.code || 'unknown_error'
-          })
-        };
+        return createApiResponse(false, {
+          message: error.message,
+          code: error.response?.data?.code || 'unknown_error'
+        });
       }
     }
   };
