@@ -2,6 +2,7 @@
  * YOURLS-MCP Tool: Generate QR code for a short URL
  */
 import { z } from 'zod';
+import { createMcpResponse } from '../utils.js';
 
 /**
  * Creates the generate QR code tool
@@ -95,38 +96,21 @@ export default function createGenerateQrCodeTool(yourlsClient) {
         });
         
         if (result.status === 'success') {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  status: 'success',
-                  shorturl: shorturl,
-                  data: result.data,
-                  contentType: result.contentType,
-                  url: result.url,
-                  config: result.config
-                })
-              }
-            ]
-          };
+          return createMcpResponse(true, {
+            shorturl: shorturl,
+            data: result.data,
+            contentType: result.contentType,
+            url: result.url,
+            config: result.config
+          });
         } else {
           throw new Error(result.message || 'Unknown error');
         }
       } catch (error) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({
-                status: 'error',
-                message: error.message,
-                shorturl: shorturl
-              })
-            }
-          ],
-          isError: true
-        };
+        return createMcpResponse(false, {
+          message: error.message,
+          shorturl: shorturl
+        });
       }
     }
   };

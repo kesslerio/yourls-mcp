@@ -1,6 +1,7 @@
 /**
  * Database Statistics tool implementation
  */
+import { createMcpResponse } from '../utils.js';
 
 /**
  * Create a database statistics tool
@@ -22,32 +23,20 @@ export default function createDbStatsTool(yourlsClient) {
         
         if (result['db-stats']) {
           const stats = result['db-stats'];
-          return {
-            contentType: 'application/json',
-            content: JSON.stringify({
-              status: 'success',
-              total_links: stats.total_links || 0,
-              total_clicks: stats.total_clicks || 0
-            })
-          };
+          return createMcpResponse(true, {
+            total_links: stats.total_links || 0,
+            total_clicks: stats.total_clicks || 0
+          });
         } else {
-          return {
-            contentType: 'application/json',
-            content: JSON.stringify({
-              status: 'error',
-              message: result.message || 'Unknown error',
-              code: result.code || 'unknown'
-            })
-          };
+          return createMcpResponse(false, {
+            message: result.message || 'Unknown error',
+            code: result.code || 'unknown'
+          });
         }
       } catch (error) {
-        return {
-          contentType: 'application/json',
-          content: JSON.stringify({
-            status: 'error',
-            message: error.message
-          })
-        };
+        return createMcpResponse(false, {
+          message: error.message
+        });
       }
     }
   };

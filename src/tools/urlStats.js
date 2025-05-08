@@ -1,6 +1,7 @@
 /**
  * URL Statistics tool implementation
  */
+import { createMcpResponse } from '../utils.js';
 
 /**
  * Create a URL statistics tool
@@ -27,34 +28,22 @@ export default function createUrlStatsTool(yourlsClient) {
         const result = await yourlsClient.urlStats(shorturl);
         
         if (result.link) {
-          return {
-            contentType: 'application/json',
-            content: JSON.stringify({
-              status: 'success',
-              shorturl: result.shorturl || shorturl,
-              clicks: result.link.clicks || 0,
-              title: result.link.title || '',
-              longurl: result.link.url || ''
-            })
-          };
+          return createMcpResponse(true, {
+            shorturl: result.shorturl || shorturl,
+            clicks: result.link.clicks || 0,
+            title: result.link.title || '',
+            longurl: result.link.url || ''
+          });
         } else {
-          return {
-            contentType: 'application/json',
-            content: JSON.stringify({
-              status: 'error',
-              message: result.message || 'Unknown error',
-              code: result.code || 'unknown'
-            })
-          };
+          return createMcpResponse(false, {
+            message: result.message || 'Unknown error',
+            code: result.code || 'unknown'
+          });
         }
       } catch (error) {
-        return {
-          contentType: 'application/json',
-          content: JSON.stringify({
-            status: 'error',
-            message: error.message
-          })
-        };
+        return createMcpResponse(false, {
+          message: error.message
+        });
       }
     }
   };

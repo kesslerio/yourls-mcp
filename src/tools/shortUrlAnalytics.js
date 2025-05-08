@@ -2,6 +2,7 @@
  * YOURLS-MCP Tool: Get detailed analytics for a short URL
  */
 import { z } from 'zod';
+import { createMcpResponse } from '../utils.js';
 
 /**
  * Creates the short URL analytics tool
@@ -36,43 +37,26 @@ export default function createShortUrlAnalyticsTool(yourlsClient) {
         const result = await yourlsClient.shortUrlAnalytics(shorturl, date, date_end);
         
         if (result.stats) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  status: 'success',
-                  shorturl: shorturl,
-                  total_clicks: result.stats.total_clicks || 0,
-                  range_clicks: result.stats.range_clicks || 0,
-                  daily_clicks: result.stats.daily_clicks || {},
-                  date_range: {
-                    start: date,
-                    end: date_end || date
-                  }
-                })
-              }
-            ]
-          };
+          return createMcpResponse(true, {
+            shorturl: shorturl,
+            total_clicks: result.stats.total_clicks || 0,
+            range_clicks: result.stats.range_clicks || 0,
+            daily_clicks: result.stats.daily_clicks || {},
+            date_range: {
+              start: date,
+              end: date_end || date
+            }
+          });
         } else {
           throw new Error(result.message || 'Unknown error');
         }
       } catch (error) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({
-                status: 'error',
-                message: error.message,
-                shorturl: shorturl,
-                date: date,
-                date_end: date_end || date
-              })
-            }
-          ],
-          isError: true
-        };
+        return createMcpResponse(false, {
+          message: error.message,
+          shorturl: shorturl,
+          date: date,
+          date_end: date_end || date
+        });
       }
     }
   };
