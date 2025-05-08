@@ -184,6 +184,18 @@ Get a list of URLs with sorting, pagination, and filtering options.
 - `query` (optional): Optional search query for filtering by keyword
 - `fields` (optional): Fields to return (keyword, url, title, timestamp, ip, clicks) (default: all fields)
 
+#### 13. generate_qr_code
+
+Generate a QR code for a shortened URL.
+*Requires the YOURLS-IQRCodes plugin to be installed.*
+
+**Parameters:**
+- `shorturl` (required): The short URL or keyword to generate a QR code for
+- `size` (optional): QR code size in pixels
+- `border` (optional): Border width around the QR code
+- `ecc` (optional): Error correction level: L (low), M (medium), Q (quartile), or H (high)
+- `format` (optional): Image format (png, jpg, svg, etc.)
+
 ## Usage Examples
 
 Once configured, Claude will be able to use the YOURLS tools with prompts like:
@@ -216,6 +228,11 @@ Once configured, Claude will be able to use the YOURLS tools with prompts like:
 - "Show me the most recent 10 short URLs in my YOURLS database"
 - "List all the short URLs sorted by number of clicks"
 - "Search for short URLs containing 'product'"
+- "Generate a QR code for my short URL 'docs'"
+- "Create a QR code for bysha.pe/web"
+- "Give me a QR code for my product page with high error correction"
+- "I need a larger QR code for the 'landing' shorturl, make it 300 pixels"
+- "Generate a SVG QR code for our documentation link"
 
 ## Development
 
