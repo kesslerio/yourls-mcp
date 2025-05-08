@@ -41,9 +41,30 @@ export default function createGenerateQrCodeTool(yourlsClient) {
     },
     execute: async ({ shorturl, size, border, ecc, format }) => {
       try {
+        // Validate size if provided
+        if (size !== undefined) {
+          const sizeNum = Number(size);
+          if (isNaN(sizeNum) || sizeNum <= 0) {
+            throw new Error('Size must be a positive number');
+          }
+          
+          // Add upper limit check for QR code size
+          if (sizeNum > 1000) {
+            throw new Error('QR code size cannot exceed 1000 pixels for performance reasons');
+          }
+        }
+        
+        // Validate border if provided
+        if (border !== undefined) {
+          const borderNum = Number(border);
+          if (isNaN(borderNum) || borderNum < 0) {
+            throw new Error('Border must be a non-negative number');
+          }
+        }
+        
         // Validate ecc if provided
         if (ecc && !['L', 'M', 'Q', 'H'].includes(ecc.toUpperCase())) {
-          throw new Error('Error correction level must be one of: L, M, Q, H');
+          throw new Error(`Error correction level '${ecc}' is not supported. Must be one of: L (low), M (medium), Q (quartile), or H (high)`);
         }
         
         // Normalize ecc to uppercase
@@ -53,13 +74,22 @@ export default function createGenerateQrCodeTool(yourlsClient) {
         
         // Validate format if provided
         if (format && !['png', 'jpg', 'jpeg', 'gif', 'svg'].includes(format.toLowerCase())) {
-          throw new Error('Format must be one of: png, jpg, jpeg, gif, svg');
+          throw new Error(`Format '${format}' is not supported. Must be one of: png, jpg, jpeg, gif, svg`);
         }
+        
+        // Define MIME type mapping to ensure consistency
+        const formatToMimeType = {
+          'png': 'image/png',
+          'jpg': 'image/jpeg',
+          'jpeg': 'image/jpeg',
+          'svg': 'image/svg+xml',
+          'gif': 'image/gif'
+        };
         
         // Generate QR code
         const result = await yourlsClient.generateQrCode(shorturl, {
-          size: size ? Number(size) : undefined,
-          border: border ? Number(border) : undefined,
+          size: size !== undefined ? Number(size) : undefined,
+          border: border !== undefined ? Number(border) : undefined,
           ecc,
           format
         });
@@ -74,7 +104,8 @@ export default function createGenerateQrCodeTool(yourlsClient) {
                   shorturl: shorturl,
                   data: result.data,
                   contentType: result.contentType,
-                  url: result.url
+                  url: result.url,
+                  config: result.config
                 })
               }
             ]

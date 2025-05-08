@@ -443,13 +443,22 @@ export default class YourlsClient {
    * 
    * @param {string} shorturl - The short URL or keyword
    * @param {object} [options] - Optional configuration for QR code generation
-   * @param {number} [options.size] - QR code size in pixels
+   * @param {number} [options.size] - QR code size in pixels (1-1000)
    * @param {number} [options.border] - Border width
    * @param {string} [options.ecc] - Error correction level (L, M, Q, H)
-   * @param {string} [options.format] - Image format (default: png)
+   * @param {string} [options.format] - Image format (png, jpg, svg, etc.)
    * @returns {Promise<object>} QR code image data as base64 string
    */
   async generateQrCode(shorturl, { size, border, ecc, format } = {}) {
+    // Define MIME type mapping to ensure consistency
+    const formatToMimeType = {
+      'png': 'image/png',
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'svg': 'image/svg+xml',
+      'gif': 'image/gif'
+    };
+    
     try {
       // First check if the shorturl exists
       await this.expand(shorturl);
@@ -458,12 +467,50 @@ export default class YourlsClient {
       const baseUrl = this.api_url.replace('yourls-api.php', '');
       let qrUrl = `${baseUrl}${shorturl}.qr`;
       
+      // Validate and normalize the parameters
+      let normalizedSize, normalizedBorder, normalizedEcc, normalizedFormat;
+      
+      // Validate size
+      if (size !== undefined) {
+        normalizedSize = Number(size);
+        if (isNaN(normalizedSize) || normalizedSize <= 0) {
+          throw new Error('Size must be a positive number');
+        }
+        if (normalizedSize > 1000) {
+          throw new Error('QR code size cannot exceed 1000 pixels for performance reasons');
+        }
+      }
+      
+      // Validate border
+      if (border !== undefined) {
+        normalizedBorder = Number(border);
+        if (isNaN(normalizedBorder) || normalizedBorder < 0) {
+          throw new Error('Border must be a non-negative number');
+        }
+      }
+      
+      // Validate and normalize ECC
+      if (ecc !== undefined) {
+        if (!['L', 'M', 'Q', 'H', 'l', 'm', 'q', 'h'].includes(ecc)) {
+          throw new Error(`Error correction level '${ecc}' is not supported. Must be one of: L, M, Q, H`);
+        }
+        normalizedEcc = ecc.toUpperCase();
+      }
+      
+      // Validate and normalize format
+      if (format !== undefined) {
+        normalizedFormat = format.toLowerCase();
+        if (!Object.keys(formatToMimeType).includes(normalizedFormat)) {
+          throw new Error(`Format '${format}' is not supported. Must be one of: png, jpg, jpeg, gif, svg`);
+        }
+      }
+      
       // Add query parameters if provided
       const params = new URLSearchParams();
-      if (size) params.append('size', size);
-      if (border) params.append('border', border);
-      if (ecc) params.append('ecc', ecc);
-      if (format) params.append('format', format);
+      if (normalizedSize !== undefined) params.append('size', normalizedSize);
+      if (normalizedBorder !== undefined) params.append('border', normalizedBorder);
+      if (normalizedEcc !== undefined) params.append('ecc', normalizedEcc);
+      if (normalizedFormat !== undefined) params.append('format', normalizedFormat);
       
       const queryString = params.toString();
       if (queryString) {
@@ -478,14 +525,22 @@ export default class YourlsClient {
       // Convert to base64
       const base64Image = Buffer.from(response.data, 'binary').toString('base64');
       
-      // Determine MIME type
-      const contentType = response.headers['content-type'] || 'image/png';
+      // Determine MIME type - use our mapping if we know the format, otherwise use server-provided
+      const contentType = normalizedFormat ? 
+        formatToMimeType[normalizedFormat] : 
+        (response.headers['content-type'] || 'image/png');
       
       return {
         status: 'success',
         data: base64Image,
         contentType: contentType,
-        url: qrUrl
+        url: qrUrl,
+        config: {
+          size: normalizedSize,
+          border: normalizedBorder,
+          ecc: normalizedEcc,
+          format: normalizedFormat
+        }
       };
     } catch (error) {
       // If the error is from the expand method (meaning the shorturl doesn't exist)
