@@ -560,4 +560,66 @@ export default class YourlsClient {
       throw error;
     }
   }
+  
+  /**
+   * Create a short URL with Google Analytics UTM parameters
+   * 
+   * @param {string} url - The URL to shorten
+   * @param {object} utmParams - Google Analytics UTM parameters
+   * @param {string} utmParams.source - Required: UTM source parameter
+   * @param {string} utmParams.medium - Required: UTM medium parameter
+   * @param {string} utmParams.campaign - Required: UTM campaign parameter
+   * @param {string} [utmParams.term] - Optional: UTM term parameter
+   * @param {string} [utmParams.content] - Optional: UTM content parameter
+   * @param {string} [keyword] - Optional custom keyword for the short URL
+   * @param {string} [title] - Optional title for the URL
+   * @returns {Promise<object>} API response
+   */
+  async shortenWithAnalytics(url, utmParams, keyword, title) {
+    // Validate required UTM parameters
+    if (!utmParams.source) {
+      throw new Error('UTM source parameter is required');
+    }
+    
+    if (!utmParams.medium) {
+      throw new Error('UTM medium parameter is required');
+    }
+    
+    if (!utmParams.campaign) {
+      throw new Error('UTM campaign parameter is required');
+    }
+    
+    // Build the URL with UTM parameters
+    const urlObj = new URL(url);
+    
+    // Add UTM parameters
+    urlObj.searchParams.set('utm_source', utmParams.source);
+    urlObj.searchParams.set('utm_medium', utmParams.medium);
+    urlObj.searchParams.set('utm_campaign', utmParams.campaign);
+    
+    // Add optional UTM parameters if provided
+    if (utmParams.term) {
+      urlObj.searchParams.set('utm_term', utmParams.term);
+    }
+    
+    if (utmParams.content) {
+      urlObj.searchParams.set('utm_content', utmParams.content);
+    }
+    
+    // Create the short URL with the UTM parameters
+    const result = await this.shorten(urlObj.toString(), keyword, title);
+    
+    // Add UTM parameters to the response
+    if (result.shorturl) {
+      result.analytics = {
+        utm_source: utmParams.source,
+        utm_medium: utmParams.medium,
+        utm_campaign: utmParams.campaign,
+        utm_term: utmParams.term || '',
+        utm_content: utmParams.content || ''
+      };
+    }
+    
+    return result;
+  }
 }

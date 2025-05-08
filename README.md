@@ -113,9 +113,23 @@ Creates a custom short URL with a specific keyword.
 - `keyword` (required): The custom keyword for the short URL (e.g., "web" for bysha.pe/web)
 - `title` (optional): Title for the URL
 
+#### 6. shorten_with_analytics
+
+Shortens a long URL with Google Analytics UTM parameters.
+
+**Parameters:**
+- `url` (required): The URL to shorten
+- `source` (required): UTM source parameter - identifies the source of traffic (e.g., "google", "newsletter", "twitter")
+- `medium` (required): UTM medium parameter - identifies the marketing medium (e.g., "cpc", "social", "email")
+- `campaign` (required): UTM campaign parameter - identifies the specific campaign (e.g., "summer_sale", "product_launch")
+- `term` (optional): UTM term parameter - identifies paid search terms
+- `content` (optional): UTM content parameter - differentiates ads or links pointing to the same URL
+- `keyword` (optional): Custom keyword for the short URL
+- `title` (optional): Title for the URL
+
 ### Plugin-based Tools
 
-#### 6. url_analytics
+#### 7. url_analytics
 
 Gets detailed click analytics for a short URL within a date range.
 *Requires the API ShortURL Analytics plugin to be installed.*
@@ -125,7 +139,7 @@ Gets detailed click analytics for a short URL within a date range.
 - `date` (required): Start date for analytics in YYYY-MM-DD format
 - `date_end` (optional): End date for analytics in YYYY-MM-DD format (defaults to start date if not provided)
 
-#### 7. contract_url
+#### 8. contract_url
 
 Check if a URL has already been shortened without creating a new short URL.
 *Requires the API Contract plugin to be installed.*
@@ -133,7 +147,7 @@ Check if a URL has already been shortened without creating a new short URL.
 **Parameters:**
 - `url` (required): The URL to check if it has been shortened
 
-#### 8. update_url
+#### 9. update_url
 
 Update an existing short URL to point to a different destination URL.
 *Requires the API Edit URL plugin to be installed.*
@@ -143,7 +157,7 @@ Update an existing short URL to point to a different destination URL.
 - `url` (required): The new destination URL
 - `title` (optional): Optional new title ("keep" to keep existing, "auto" to fetch from URL)
 
-#### 9. change_keyword
+#### 10. change_keyword
 
 Change the keyword of an existing short URL.
 *Requires the API Edit URL plugin to be installed.*
@@ -154,7 +168,7 @@ Change the keyword of an existing short URL.
 - `url` (optional): Optional URL (if not provided, will use the URL from oldshorturl)
 - `title` (optional): Optional new title ("keep" to keep existing, "auto" to fetch from URL)
 
-#### 10. get_url_keyword
+#### 11. get_url_keyword
 
 Get the keyword(s) for a long URL.
 *Requires the API Edit URL plugin to be installed.*
@@ -163,7 +177,7 @@ Get the keyword(s) for a long URL.
 - `url` (required): The long URL to look up
 - `exactly_one` (optional): If false, returns all keywords for this URL (default: true)
 
-#### 11. delete_url
+#### 12. delete_url
 
 Delete a short URL.
 *Requires the API Delete plugin to be installed.*
@@ -171,7 +185,7 @@ Delete a short URL.
 **Parameters:**
 - `shorturl` (required): The short URL or keyword to delete
 
-#### 12. list_urls
+#### 13. list_urls
 
 Get a list of URLs with sorting, pagination, and filtering options.
 *Requires the API List Extended plugin to be installed.*
@@ -184,7 +198,7 @@ Get a list of URLs with sorting, pagination, and filtering options.
 - `query` (optional): Optional search query for filtering by keyword
 - `fields` (optional): Fields to return (keyword, url, title, timestamp, ip, clicks) (default: all fields)
 
-#### 13. generate_qr_code
+#### 14. generate_qr_code
 
 Generate a QR code for a shortened URL.
 *Requires the YOURLS-IQRCodes plugin to be installed.*
@@ -206,6 +220,8 @@ Once configured, Claude will be able to use the YOURLS tools with prompts like:
 - "Create a short URL with the keyword 'docs' for https://example.com/documentation"
 - "Set up a custom URL bysha.pe/web that points to shapescale.com"
 - "Create a custom short URL for our documentation using the keyword 'docs'"
+- "Create a short URL for our campaign with UTM tracking parameters"
+- "Shorten this marketing URL with Google Analytics tracking: source=newsletter, medium=email, campaign=summer_launch"
 - "Expand this short URL: https://yourdomain.com/abc"
 - "How many clicks does my short URL https://yourdomain.com/abc have?"
 - "Show me the statistics for my YOURLS instance"

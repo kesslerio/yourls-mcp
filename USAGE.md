@@ -141,6 +141,29 @@ Claude: I've generated a larger QR code with high error correction:
 This QR code is 300 pixels in size and uses H-level error correction, making it more reliable when printed or displayed in challenging conditions.
 ```
 
+### Creating Short URLs with Google Analytics Tracking
+
+```
+You: Can you create a short URL for our marketing campaign with UTM parameters?
+
+Claude: I'd be happy to create a short URL with Google Analytics tracking parameters. What's the URL and the campaign details?
+
+You: The URL is https://example.com/summer-collection and it's for our email newsletter campaign about our summer launch.
+
+Claude: I'll create a tracked short URL for your summer collection campaign.
+
+I've created a short URL with Google Analytics tracking parameters:
+
+The shortened URL is: https://yourdomain.com/summer
+
+This URL includes the following UTM parameters:
+- Source: newsletter
+- Medium: email
+- Campaign: summer_launch
+
+When users click this link, these parameters will be tracked in your Google Analytics dashboard.
+```
+
 ## Practical Use Cases
 
 YOURLS-MCP is particularly useful for:
@@ -152,6 +175,8 @@ YOURLS-MCP is particularly useful for:
 3. **Link Management**: Claude can help organize your shortened links by suggesting keywords based on content and providing analytics on existing links.
 
 4. **Social Media Drafting**: When helping draft social media posts, Claude can provide shortened URLs that fit within character limits.
+
+5. **Marketing Campaigns**: Claude can create shortened URLs with Google Analytics tracking parameters (UTM tags) for your marketing campaigns, making it easy to track the performance of different channels and campaigns.
 
 ## Troubleshooting
 

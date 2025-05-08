@@ -6,6 +6,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { loadConfig, validateConfig } from './config.js';
 import YourlsClient from './api.js';
+import createShortenWithAnalyticsTool from './tools/shortenWithAnalytics.js';
 
 /**
  * Create and configure MCP server for YOURLS
@@ -323,6 +324,69 @@ export function createServer() {
                 message: errorMessage,
                 originalUrl: url,
                 attemptedKeyword: keyword
+              })
+            }
+          ],
+          isError: true
+        };
+      }
+    }
+  );
+
+  // Register shorten_with_analytics tool
+  server.tool('shorten_with_analytics', 
+    'Shorten a long URL with Google Analytics UTM parameters', 
+    {
+      url: z.string().describe('The URL to shorten'),
+      source: z.string().describe('UTM source parameter (required) - identifies the source of traffic (e.g., "google", "newsletter", "twitter")'),
+      medium: z.string().describe('UTM medium parameter (required) - identifies the marketing medium (e.g., "cpc", "social", "email")'),
+      campaign: z.string().describe('UTM campaign parameter (required) - identifies the specific campaign (e.g., "summer_sale", "product_launch")'),
+      term: z.string().optional().describe('UTM term parameter (optional) - identifies paid search terms'),
+      content: z.string().optional().describe('UTM content parameter (optional) - differentiates ads or links pointing to the same URL'),
+      keyword: z.string().optional().describe('Optional custom keyword for the short URL'),
+      title: z.string().optional().describe('Optional title for the URL')
+    },
+    async ({ url, source, medium, campaign, term, content, keyword, title }) => {
+      try {
+        // Create UTM parameters object
+        const utmParams = {
+          source,
+          medium,
+          campaign,
+          term,
+          content
+        };
+        
+        // Call the API client method
+        const result = await yourlsClient.shortenWithAnalytics(url, utmParams, keyword, title);
+        
+        if (result.shorturl) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({
+                  status: 'success',
+                  shorturl: result.shorturl,
+                  url: result.url || url,
+                  title: result.title || title || '',
+                  analytics: result.analytics
+                })
+              }
+            ]
+          };
+        } else {
+          throw new Error(result.message || 'Unknown error');
+        }
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                status: 'error',
+                message: error.message,
+                code: error.response?.data?.code || 'unknown_error'
               })
             }
           ],
