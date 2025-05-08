@@ -47,8 +47,13 @@ function validateResponseFormat(response, isSuccess) {
 async function runTests() {
   console.log('Testing standardized response format...');
   
-  // Create server with mock client
-  const server = createServer();
+  // Import tool creators directly
+  console.log('Creating mock tools...');
+  
+  // Import tool creators from src/tools
+  import createShortenUrlTool from '../../src/tools/shortenUrl.js';
+  import createExpandUrlTool from '../../src/tools/expandUrl.js';
+  import createDbStatsTool from '../../src/tools/dbStats.js';
   
   // Mock YOURLS client
   const mockYourlsClient = {
@@ -57,14 +62,13 @@ async function runTests() {
     dbStats: async () => ({ 'db-stats': { total_links: 100, total_clicks: 500 } })
   };
   
-  // Override the client
-  server._yourlsClient = mockYourlsClient;
+  // Create tool instances directly
+  const shortenTool = createShortenUrlTool(mockYourlsClient);
+  const expandTool = createExpandUrlTool(mockYourlsClient);
+  const dbStatsTool = createDbStatsTool(mockYourlsClient);
   
   // Test success responses
   console.log('Testing success responses...');
-  
-  // Test shortenUrl
-  const shortenTool = server._tools.find(t => t.name === 'shorten_url');
   const shortenResponse = await shortenTool.execute({ url: 'https://example.com' });
   validateResponseFormat(shortenResponse, true);
   console.log('✓ shortenUrl success response is valid');
@@ -84,25 +88,30 @@ async function runTests() {
   // Test error responses
   console.log('\nTesting error responses...');
   
-  // Override client to simulate errors
-  server._yourlsClient = {
+  // Create new tool instances with error-throwing mock client
+  const errorClient = {
     shorten: async () => { throw new Error('Test error'); },
     expand: async () => { throw new Error('Test error'); },
     dbStats: async () => { throw new Error('Test error'); }
   };
   
+  // Create new tool instances with error client
+  const shortenErrorTool = createShortenUrlTool(errorClient);
+  const expandErrorTool = createExpandUrlTool(errorClient);
+  const dbStatsErrorTool = createDbStatsTool(errorClient);
+  
   // Test shortenUrl error
-  const shortenErrorResponse = await shortenTool.execute({ url: 'https://example.com' });
+  const shortenErrorResponse = await shortenErrorTool.execute({ url: 'https://example.com' });
   validateResponseFormat(shortenErrorResponse, false);
   console.log('✓ shortenUrl error response is valid');
   
   // Test expandUrl error
-  const expandErrorResponse = await expandTool.execute({ shorturl: 'abc' });
+  const expandErrorResponse = await expandErrorTool.execute({ shorturl: 'abc' });
   validateResponseFormat(expandErrorResponse, false);
   console.log('✓ expandUrl error response is valid');
   
   // Test dbStats error
-  const dbStatsErrorResponse = await dbStatsTool.execute({});
+  const dbStatsErrorResponse = await dbStatsErrorTool.execute({});
   validateResponseFormat(dbStatsErrorResponse, false);
   console.log('✓ dbStats error response is valid');
   
