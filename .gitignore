@@ -21,6 +21,7 @@ env/
 config.yaml
 .env
 CLAUDE.md
+claude-local-config.json
 
 # YOURLS directory (reference only, not tracked)
 YOURLS/

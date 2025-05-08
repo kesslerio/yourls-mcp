@@ -1,13 +1,13 @@
 /**
  * YOURLS API client
  */
-const axios = require('axios');
-const crypto = require('crypto');
+import axios from 'axios';
+import crypto from 'crypto';
 
 /**
  * YOURLS API client for interacting with YOURLS URL shortener
  */
-class YourlsClient {
+export default class YourlsClient {
   /**
    * Create a new YOURLS API client
    * 
@@ -143,5 +143,3 @@ class YourlsClient {
     return this.request('db-stats', {});
   }
 }
-
-module.exports = YourlsClient;

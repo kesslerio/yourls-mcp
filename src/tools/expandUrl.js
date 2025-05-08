@@ -8,7 +8,7 @@
  * @param {object} yourlsClient - YOURLS API client
  * @returns {object} Tool definition
  */
-function createExpandUrlTool(yourlsClient) {
+export default function createExpandUrlTool(yourlsClient) {
   return {
     name: 'expand_url',
     description: 'Expand a short URL to its original long URL',
@@ -58,5 +58,3 @@ function createExpandUrlTool(yourlsClient) {
     }
   };
 }
-
-module.exports = createExpandUrlTool;

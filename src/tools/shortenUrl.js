@@ -8,7 +8,7 @@
  * @param {object} yourlsClient - YOURLS API client
  * @returns {object} Tool definition
  */
-function createShortenUrlTool(yourlsClient) {
+export default function createShortenUrlTool(yourlsClient) {
   return {
     name: 'shorten_url',
     description: 'Shorten a long URL using YOURLS',
@@ -66,5 +66,3 @@ function createShortenUrlTool(yourlsClient) {
     }
   };
 }
-
-module.exports = createShortenUrlTool;

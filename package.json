@@ -2,12 +2,16 @@
   "name": "yourls-mcp",
   "version": "0.1.0",
   "description": "Model Control Protocol server for YOURLS URL shortening",
+  "type": "module",
   "main": "src/index.js",
   "bin": {
     "yourls-mcp": "yourls-mcp.js"
   },
   "scripts": {
     "start": "node yourls-mcp.js"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "keywords": [
     "mcp",
@@ -26,9 +30,10 @@
     "@modelcontextprotocol/sdk": "^1.11.0",
     "axios": "^1.6.2",
     "dotenv": "^16.3.1",
-    "js-yaml": "^4.1.0"
+    "js-yaml": "^4.1.0",
+    "zod": "^3.23.8"
   },
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=18.0.0"
   }
 }
