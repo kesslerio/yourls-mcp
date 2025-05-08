@@ -5,6 +5,19 @@ import axios from 'axios';
 import crypto from 'crypto';
 
 /**
+ * Helper function to check for missing plugin errors
+ *
+ * @param {Error} error - The error object to check
+ * @returns {boolean} True if the error indicates a missing plugin
+ */
+function isPluginMissingError(error) {
+  return error.response && 
+    error.response.data && 
+    (error.response.data.message === 'Unknown or missing action' ||
+     error.response.data.message?.includes('Unknown action'));
+}
+
+/**
  * YOURLS API client for interacting with YOURLS URL shortener
  */
 export default class YourlsClient {
@@ -231,11 +244,193 @@ export default class YourlsClient {
       return this.request('shorturl_analytics', params);
     } catch (error) {
       // If the plugin isn't installed, we'll get an error about unknown action
-      if (error.response && 
-          error.response.data && 
-          (error.response.data.message === 'Unknown or missing action' ||
-           error.response.data.message?.includes('Unknown action'))) {
+      if (isPluginMissingError(error)) {
         throw new Error('The shorturl_analytics action is not available. Please install the API ShortURL Analytics plugin.');
+      }
+      
+      // Otherwise, re-throw the original error
+      throw error;
+    }
+  }
+  
+  /**
+   * Check if a URL has been shortened without creating a new short URL
+   * 
+   * @param {string} url - The URL to check
+   * @returns {Promise<object>} API response with information about whether the URL exists
+   */
+  async contractUrl(url) {
+    try {
+      return this.request('contract', { url });
+    } catch (error) {
+      // If the plugin isn't installed, we'll get an error about unknown action
+      if (isPluginMissingError(error)) {
+        throw new Error('The contract action is not available. Please install the API Contract plugin.');
+      }
+      
+      // Otherwise, re-throw the original error
+      throw error;
+    }
+  }
+  
+  /**
+   * Update a short URL to point to a different destination URL
+   * 
+   * @param {string} shorturl - The short URL or keyword to update
+   * @param {string} url - The new destination URL
+   * @param {string} [title] - Optional new title ('keep' to keep existing, 'auto' to fetch from URL)
+   * @returns {Promise<object>} API response
+   */
+  async updateUrl(shorturl, url, title = null) {
+    const params = { shorturl, url };
+    
+    if (title) {
+      params.title = title;
+    }
+    
+    try {
+      return this.request('update', params);
+    } catch (error) {
+      // If the plugin isn't installed, we'll get an error about unknown action
+      if (isPluginMissingError(error)) {
+        throw new Error('The update action is not available. Please install the API Edit URL plugin.');
+      }
+      
+      // Otherwise, re-throw the original error
+      throw error;
+    }
+  }
+  
+  /**
+   * Change the keyword of an existing short URL
+   * 
+   * @param {string} oldshorturl - The existing short URL or keyword
+   * @param {string} newshorturl - The new keyword to use
+   * @param {string} [url] - Optional URL (if not provided, will use the URL from oldshorturl)
+   * @param {string} [title] - Optional new title ('keep' to keep existing, 'auto' to fetch from URL)
+   * @returns {Promise<object>} API response
+   */
+  async changeKeyword(oldshorturl, newshorturl, url = null, title = null) {
+    const params = { 
+      oldshorturl,
+      newshorturl
+    };
+    
+    if (url) {
+      params.url = url;
+    }
+    
+    if (title) {
+      params.title = title;
+    }
+    
+    try {
+      return this.request('change_keyword', params);
+    } catch (error) {
+      // If the plugin isn't installed, we'll get an error about unknown action
+      if (isPluginMissingError(error)) {
+        throw new Error('The change_keyword action is not available. Please install the API Edit URL plugin.');
+      }
+      
+      // Otherwise, re-throw the original error
+      throw error;
+    }
+  }
+  
+  /**
+   * Get the keyword(s) for a long URL
+   * 
+   * @param {string} url - The long URL to look up
+   * @param {boolean} [exactlyOne=true] - If false, returns all keywords for this URL
+   * @returns {Promise<object>} API response with keyword information
+   */
+  async getUrlKeyword(url, exactlyOne = true) {
+    const params = { url };
+    
+    if (!exactlyOne) {
+      params.exactly_one = 'false';
+    }
+    
+    try {
+      return this.request('geturl', params);
+    } catch (error) {
+      // If the plugin isn't installed, we'll get an error about unknown action
+      if (isPluginMissingError(error)) {
+        throw new Error('The geturl action is not available. Please install the API Edit URL plugin.');
+      }
+      
+      // Otherwise, re-throw the original error
+      throw error;
+    }
+  }
+  
+  /**
+   * Delete a short URL
+   * 
+   * @param {string} shorturl - The short URL or keyword to delete
+   * @returns {Promise<object>} API response
+   */
+  async deleteUrl(shorturl) {
+    try {
+      return this.request('delete', { shorturl });
+    } catch (error) {
+      // If the plugin isn't installed, we'll get an error about unknown action
+      if (isPluginMissingError(error)) {
+        throw new Error('The delete action is not available. Please install the API Delete plugin.');
+      }
+      
+      // Otherwise, re-throw the original error
+      throw error;
+    }
+  }
+  
+  /**
+   * Get a list of URLs with sorting, pagination, and filtering options
+   * 
+   * @param {object} options - List options
+   * @param {string} [options.sortby='timestamp'] - Field to sort by (keyword, url, title, ip, timestamp, clicks)
+   * @param {string} [options.sortorder='DESC'] - Sort order (ASC or DESC)
+   * @param {number} [options.offset=0] - Pagination offset
+   * @param {number} [options.perpage=50] - Number of results per page
+   * @param {string} [options.query=''] - Optional search query for filtering by keyword
+   * @param {string[]} [options.fields=['*']] - Fields to return (keyword, url, title, timestamp, ip, clicks)
+   * @returns {Promise<object>} API response with list of URLs
+   */
+  async listUrls({ sortby = 'timestamp', sortorder = 'DESC', offset = 0, perpage = 50, query = '', fields = ['*'] } = {}) {
+    // Validate sortby field
+    const validSortFields = ['keyword', 'url', 'title', 'ip', 'timestamp', 'clicks'];
+    if (sortby && !validSortFields.includes(sortby)) {
+      throw new Error(`Invalid sortby value. Must be one of: ${validSortFields.join(', ')}`);
+    }
+    
+    // Validate sortorder
+    if (sortorder && !['ASC', 'DESC'].includes(sortorder.toUpperCase())) {
+      throw new Error('Invalid sortorder value. Must be ASC or DESC');
+    }
+    
+    // Validate fields
+    if (fields && fields.length > 0 && fields[0] !== '*') {
+      const validFields = ['keyword', 'url', 'title', 'timestamp', 'ip', 'clicks'];
+      const invalidFields = fields.filter(field => !validFields.includes(field));
+      
+      if (invalidFields.length > 0) {
+        throw new Error(`Invalid fields: ${invalidFields.join(', ')}. Valid fields are: ${validFields.join(', ')}`);
+      }
+    }
+    
+    try {
+      return this.request('list', { 
+        sortby, 
+        sortorder: sortorder.toUpperCase(), 
+        offset, 
+        perpage, 
+        query,
+        fields
+      });
+    } catch (error) {
+      // If the plugin isn't installed, we'll get an error about unknown action
+      if (isPluginMissingError(error)) {
+        throw new Error('The list action is not available. Please install the API List Extended plugin.');
       }
       
       // Otherwise, re-throw the original error
