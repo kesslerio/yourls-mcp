@@ -1,5 +1,9 @@
 /**
  * URL Expansion tool implementation
+ * 
+ * Uses the standardized MCP response format via createMcpResponse utility:
+ * - Success: {content: [{type: 'text', text: JSON.stringify({status: 'success', ...data})}]}
+ * - Error: {content: [{type: 'text', text: JSON.stringify({status: 'error', ...data})}], isError: true}
  */
 import { createMcpResponse } from '../utils.js';
 
@@ -7,7 +11,7 @@ import { createMcpResponse } from '../utils.js';
  * Create a URL expansion tool
  * 
  * @param {object} yourlsClient - YOURLS API client
- * @returns {object} Tool definition
+ * @returns {object} Tool definition with standardized MCP response format
  */
 export default function createExpandUrlTool(yourlsClient) {
   return {

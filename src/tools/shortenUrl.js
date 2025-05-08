@@ -1,5 +1,9 @@
 /**
  * URL Shortening tool implementation
+ * 
+ * Uses the standardized MCP response format via createMcpResponse utility:
+ * - Success: {content: [{type: 'text', text: JSON.stringify({status: 'success', ...data})}]}
+ * - Error: {content: [{type: 'text', text: JSON.stringify({status: 'error', ...data})}], isError: true}
  */
 import { isShortShortError, createShortShortErrorResponse, createMcpResponse } from '../utils.js';
 
@@ -7,7 +11,7 @@ import { isShortShortError, createShortShortErrorResponse, createMcpResponse } f
  * Create a URL shortening tool
  * 
  * @param {object} yourlsClient - YOURLS API client
- * @returns {object} Tool definition
+ * @returns {object} Tool definition with standardized MCP response format
  */
 export default function createShortenUrlTool(yourlsClient) {
   return {
