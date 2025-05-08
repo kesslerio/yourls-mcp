@@ -1,6 +1,7 @@
 /**
  * URL Shortening tool implementation
  */
+import { isShortShortError, createShortShortErrorResponse, createApiResponse } from '../utils.js';
 
 /**
  * Create a URL shortening tool
@@ -35,33 +36,28 @@ export default function createShortenUrlTool(yourlsClient) {
         const result = await yourlsClient.shorten(url, keyword, title);
         
         if (result.shorturl) {
-          return {
-            contentType: 'application/json',
-            content: JSON.stringify({
-              status: 'success',
-              shorturl: result.shorturl,
-              url: result.url || url,
-              title: result.title || title || ''
-            })
-          };
+          return createApiResponse(true, {
+            shorturl: result.shorturl,
+            url: result.url || url,
+            title: result.title || title || ''
+          });
         } else {
-          return {
-            contentType: 'application/json',
-            content: JSON.stringify({
-              status: 'error',
-              message: result.message || 'Unknown error',
-              code: result.code || 'unknown'
-            })
-          };
+          return createApiResponse(false, {
+            message: result.message || 'Unknown error',
+            code: result.code || 'unknown'
+          });
         }
       } catch (error) {
-        return {
-          contentType: 'application/json',
-          content: JSON.stringify({
-            status: 'error',
-            message: error.message
-          })
-        };
+        // Check if this is a ShortShort plugin error (prevents shortening of already-shortened URLs)
+        if (isShortShortError(error)) {
+          return createApiResponse(false, createShortShortErrorResponse(url, keyword));
+        }
+        
+        // Handle all other errors
+        return createApiResponse(false, {
+          message: error.message,
+          code: error.response?.data?.code || 'unknown_error'
+        });
       }
     }
   };
