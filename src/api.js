@@ -124,25 +124,55 @@ export default class YourlsClient {
    */
   async createCustomUrl(url, keyword, title) {
     try {
-      // First try the normal shortening
-      const result = await this.shorten(url, keyword, title);
-      return result;
-    } catch (error) {
-      // If the error is because the URL already exists, we can try with the 'add new' flag
-      if (error.response && 
-          error.response.data && 
-          error.response.data.code === 'error:url' && 
-          error.response.data.url) {
-        
-        // Try again with the 'add new' flag which allows duplicate URLs
-        const params = { 
-          url, 
-          keyword,
-          add: 1  // This tells YOURLS to allow duplicate URLs
+      // First check if the URL already exists
+      const expandResult = await this.expand(keyword);
+      
+      // If we get here, the keyword already exists - check if it's for our URL
+      if (expandResult && expandResult.longurl === url) {
+        // Keyword exists and points to the same URL - return success
+        return {
+          status: 'success',
+          shorturl: `${this.api_url.replace('yourls-api.php', '')}${keyword}`,
+          url: url,
+          title: title || expandResult.title,
+          message: 'Short URL already exists with this keyword and target URL'
         };
-        if (title) params.title = title;
-        
-        return this.request('shorturl', params);
+      } else {
+        // Keyword exists but points to a different URL - return error
+        throw new Error(`Keyword "${keyword}" already exists and points to a different URL`);
+      }
+    } catch (error) {
+      // If the error is from expand, the keyword likely doesn't exist, so we can try to create it
+      if (error.response && error.response.status === 404) {
+        try {
+          // Try direct creation since the keyword doesn't exist
+          const result = await this.shorten(url, keyword, title);
+          return result;
+        } catch (shortenError) {
+          // If the error is because the URL already exists, we need a special approach
+          if (shortenError.response && 
+              shortenError.response.data && 
+              shortenError.response.data.code === 'error:url' && 
+              shortenError.response.data.url) {
+            
+            // URL already exists with a different keyword
+            // YOURLS doesn't support multiple keywords for same URL via API directly
+            // So we'll return a special response to handle in the UI
+            return {
+              status: 'success',
+              message: 'URL already exists with different keyword',
+              existingUrl: shortenError.response.data.url,
+              existingKeyword: shortenError.response.data.url.keyword,
+              existingShorturl: shortenError.response.data.shorturl,
+              requestedKeyword: keyword,
+              url: url,
+              title: title || shortenError.response.data.title
+            };
+          }
+          
+          // For other shortening errors, throw them
+          throw shortenError;
+        }
       }
       
       // For other errors, just throw them
