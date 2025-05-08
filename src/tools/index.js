@@ -13,6 +13,7 @@ import createGetUrlKeywordTool from './getUrlKeyword.js';
 import createDeleteUrlTool from './deleteUrl.js';
 import createListUrlsTool from './listUrls.js';
 import createGenerateQrCodeTool from './generateQrCode.js';
+import createShortenWithAnalyticsTool from './shortenWithAnalytics.js';
 
 /**
  * Register all tools with the MCP server
@@ -52,4 +53,8 @@ export function registerTools(server, yourlsClient) {
   server.addTool(deleteUrlTool);
   server.addTool(listUrlsTool);
   server.addTool(generateQrCodeTool);
+  
+  // Register Google Analytics integration tool
+  const shortenWithAnalyticsTool = createShortenWithAnalyticsTool(yourlsClient);
+  server.addTool(shortenWithAnalyticsTool);
 }

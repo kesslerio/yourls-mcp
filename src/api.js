@@ -4,18 +4,8 @@
 import axios from 'axios';
 import crypto from 'crypto';
 
-/**
- * Helper function to check for missing plugin errors
- *
- * @param {Error} error - The error object to check
- * @returns {boolean} True if the error indicates a missing plugin
- */
-function isPluginMissingError(error) {
-  return error.response && 
-    error.response.data && 
-    (error.response.data.message === 'Unknown or missing action' ||
-     error.response.data.message?.includes('Unknown action'));
-}
+// Import utility functions
+import { isPluginMissingError, validateUrl, validateUtmParameters, sanitizeUtmParameters } from './utils.js';
 
 /**
  * YOURLS API client for interacting with YOURLS URL shortener
@@ -559,5 +549,67 @@ export default class YourlsClient {
       // For other errors, just throw them
       throw error;
     }
+  }
+  
+  /**
+   * Create a short URL with Google Analytics UTM parameters
+   * 
+   * @param {string} url - The URL to shorten
+   * @param {object} utmParams - Google Analytics UTM parameters
+   * @param {string} utmParams.source - Required: UTM source parameter
+   * @param {string} utmParams.medium - Required: UTM medium parameter
+   * @param {string} utmParams.campaign - Required: UTM campaign parameter
+   * @param {string} [utmParams.term] - Optional: UTM term parameter
+   * @param {string} [utmParams.content] - Optional: UTM content parameter
+   * @param {string} [keyword] - Optional custom keyword for the short URL
+   * @param {string} [title] - Optional title for the URL
+   * @returns {Promise<object>} API response
+   */
+  async shortenWithAnalytics(url, utmParams, keyword, title) {
+    // Validate URL format
+    validateUrl(url);
+    
+    // Validate and sanitize UTM parameters
+    validateUtmParameters(utmParams);
+    const sanitizedUtmParams = sanitizeUtmParameters(utmParams);
+    
+    // Check if final URL exceeds recommended length
+    const urlObj = new URL(url);
+    
+    // Add sanitized UTM parameters
+    urlObj.searchParams.set('utm_source', sanitizedUtmParams.source);
+    urlObj.searchParams.set('utm_medium', sanitizedUtmParams.medium);
+    urlObj.searchParams.set('utm_campaign', sanitizedUtmParams.campaign);
+    
+    // Add optional UTM parameters if provided
+    if (sanitizedUtmParams.term) {
+      urlObj.searchParams.set('utm_term', sanitizedUtmParams.term);
+    }
+    
+    if (sanitizedUtmParams.content) {
+      urlObj.searchParams.set('utm_content', sanitizedUtmParams.content);
+    }
+    
+    // Check URL length (common limit is 2048 characters)
+    const finalUrl = urlObj.toString();
+    if (finalUrl.length > 2048) {
+      throw new Error('URL with UTM parameters exceeds recommended length (2048 chars)');
+    }
+    
+    // Create the short URL with the UTM parameters
+    const result = await this.shorten(finalUrl, keyword, title);
+    
+    // Add UTM parameters to the response
+    if (result.shorturl) {
+      result.analytics = {
+        utm_source: sanitizedUtmParams.source,
+        utm_medium: sanitizedUtmParams.medium,
+        utm_campaign: sanitizedUtmParams.campaign,
+        utm_term: sanitizedUtmParams.term || '',
+        utm_content: sanitizedUtmParams.content || ''
+      };
+    }
+    
+    return result;
   }
 }
