@@ -1,9 +1,13 @@
 {
   "mcp_servers": {
     "yourls": {
-      "command": "python",
+      "command": "npx",
       "args": [
-        "/Users/kesslerio/GDrive/Websites/cursor/python/YOURLS-mcp/yourls_mcp/server.py",
+        "-y",
+        "--quiet",
+        "@modelcontextprotocol/sdk", 
+        "node",
+        "/Users/kesslerio/GDrive/Websites/cursor/python/YOURLS-mcp/yourls-mcp.js",
         "--config",
         "/Users/kesslerio/GDrive/Websites/cursor/python/YOURLS-mcp/config.yaml"
       ]
