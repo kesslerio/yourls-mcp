@@ -7,6 +7,7 @@ __pycache__/
 dist/
 build/
 *.egg-info/
+node_modules/
 
 # Virtual environments
 venv/
@@ -25,6 +26,9 @@ claude-local-config.json
 
 # YOURLS directory (reference only, not tracked)
 YOURLS/
+
+# Force Allow Duplicates plugin (managed in its own repository)
+yourls-force-allow-duplicates/
 
 # Logs
 *.log
