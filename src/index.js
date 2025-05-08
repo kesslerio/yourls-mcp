@@ -6,7 +6,14 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { loadConfig, validateConfig } from './config.js';
 import YourlsClient from './api.js';
-import { isShortShortError, createShortShortErrorResponse, createMcpResponse } from './utils.js';
+import { registerTools } from './tools/index.js';
+import { 
+  validateUrl, 
+  validateUtmParameters, 
+  isShortShortError, 
+  createShortShortErrorResponse, 
+  createMcpResponse 
+} from './utils.js';
 
 /**
  * Create and configure MCP server for YOURLS
@@ -295,6 +302,9 @@ export function createServer() {
       }
     }
   );
+
+  // Register all tools using the centralized tool registration
+  registerTools(server, yourlsClient);
 
   // Create a wrapper to maintain the original API
   return {
