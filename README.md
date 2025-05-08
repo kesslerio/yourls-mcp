@@ -37,9 +37,20 @@ pip install -r requirements.txt
 
 1. Copy `config.sample.yaml` to `config.yaml`
 2. Edit `config.yaml` with your YOURLS instance details:
+   
+   For signature-based authentication (recommended):
    ```yaml
    yourls:
      api_url: "https://your-yourls-domain.com/yourls-api.php"
+     auth_method: "signature"
+     signature_token: "your-signature-token"
+   ```
+   
+   Or for username/password authentication:
+   ```yaml
+   yourls:
+     api_url: "https://your-yourls-domain.com/yourls-api.php"
+     auth_method: "password"
      username: "your-username"
      password: "your-password" 
    ```
@@ -47,12 +58,12 @@ pip install -r requirements.txt
 3. Configure Claude Desktop to use this MCP server by adding to your `claude_desktop_config.json`:
    ```json
    {
-     "mcp_servers": [
-       {
-         "name": "yourls",
-         "command": ["python", "/path/to/YOURLS-mcp/yourls_mcp/server.py"]
+     "mcp_servers": {
+       "yourls": {
+         "command": ["python", "/path/to/YOURLS-mcp/yourls_mcp/server.py"],
+         "args": ["--config", "/path/to/YOURLS-mcp/config.yaml"]
        }
-     ]
+     }
    }
    ```
 

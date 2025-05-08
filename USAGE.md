@@ -53,13 +53,12 @@ This guide explains how to set up and use the YOURLS-MCP server with Claude Desk
    - Add the YOURLS-MCP server configuration:
      ```json
      {
-       "mcp_servers": [
-         {
-           "name": "yourls",
+       "mcp_servers": {
+         "yourls": {
            "command": ["python", "/path/to/YOURLS-mcp/yourls_mcp/server.py"],
            "args": ["--config", "/path/to/YOURLS-mcp/config.yaml"]
          }
-       ]
+       }
      }
      ```
 
