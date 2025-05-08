@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "yourls": {
+      "command": "node",
+      "args": [
+        "/Users/kesslerio/GDrive/Websites/cursor/python/YOURLS-mcp/yourls-mcp.js",
+        "--config",
+        "/Users/kesslerio/GDrive/Websites/cursor/python/YOURLS-mcp/config.yaml"
+      ]
+    }
+  }
+}

@@ -1,12 +1,16 @@
 {
-  "mcp_servers": {
+  "mcpServers": {
     "yourls": {
-      "command": "node",
+      "command": "npx",
       "args": [
-        "/Users/kesslerio/GDrive/Websites/cursor/python/YOURLS-mcp/yourls-mcp.js",
-        "--config",
-        "/Users/kesslerio/GDrive/Websites/cursor/python/YOURLS-mcp/config.yaml"
-      ]
+        "-y",
+        "yourls-mcp@latest"
+      ],
+      "env": {
+        "YOURLS_API_URL": "https://your-yourls-domain.com/yourls-api.php",
+        "YOURLS_AUTH_METHOD": "signature",
+        "YOURLS_SIGNATURE_TOKEN": "your-secret-signature-token"
+      }
     }
   }
 }
