@@ -231,6 +231,7 @@ export function createServer() {
         // Use the enhanced createCustomUrl method that handles duplicate URLs
         const result = await yourlsClient.createCustomUrl(url, keyword, title);
         
+        // Handle the regular success case with a shorturl
         if (result.shorturl) {
           return {
             content: [
@@ -241,12 +242,33 @@ export function createServer() {
                   shorturl: result.shorturl,
                   url: result.url || url,
                   keyword: keyword,
-                  title: result.title || title || ''
+                  title: result.title || title || '',
+                  message: result.message || 'Short URL created successfully'
                 })
               }
             ]
           };
-        } else if (result.status === 'fail' && result.code === 'error:keyword') {
+        } 
+        // Handle the case where URL already exists with a different keyword
+        else if (result.status === 'success' && result.existingShorturl) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({
+                  status: 'success',
+                  message: `URL already exists with the keyword '${result.existingKeyword}' instead of '${keyword}'`,
+                  existingShorturl: result.existingShorturl,
+                  existingKeyword: result.existingKeyword,
+                  requestedKeyword: keyword,
+                  url: url
+                })
+              }
+            ]
+          };
+        }
+        // Handle error cases
+        else if (result.status === 'fail' && result.code === 'error:keyword') {
           // Handle case where keyword already exists
           return {
             content: [
@@ -265,7 +287,26 @@ export function createServer() {
           throw new Error(result.message || 'Unknown error');
         }
       } catch (error) {
-        // Provide a more helpful error message
+        // Check for specific error messages about keyword conflicts
+        if (error.message && error.message.includes('already exists and points to a different URL')) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({
+                  status: 'error',
+                  message: error.message,
+                  code: 'keyword_conflict',
+                  url: url,
+                  keyword: keyword
+                })
+              }
+            ],
+            isError: true
+          };
+        }
+        
+        // Provide a more helpful error message for other errors
         let errorMessage = error.message;
         
         // If the error contains response data with a message, use that

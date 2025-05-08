@@ -101,6 +101,26 @@ https://bysha.pe/web
 This now redirects to: https://shapescale.com
 ```
 
+### Getting Detailed Analytics for a Short URL
+
+```
+You: Can you show me the daily click statistics for bysha.pe/docs from January 1-7, 2025?
+
+Claude: Here are the detailed click statistics for bysha.pe/docs from January 1-7, 2025:
+
+Total clicks (lifetime): 87
+Clicks in date range: 23
+
+Daily breakdown:
+- January 1, 2025: 5 clicks
+- January 2, 2025: 8 clicks
+- January 3, 2025: 4 clicks
+- January 4, 2025: 2 clicks
+- January 5, 2025: 0 clicks
+- January 6, 2025: 3 clicks
+- January 7, 2025: 1 click
+```
+
 ## Practical Use Cases
 
 YOURLS-MCP is particularly useful for:
