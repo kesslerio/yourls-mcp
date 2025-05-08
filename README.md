@@ -2,9 +2,21 @@
 
 A Model Control Protocol (MCP) server for integrating YOURLS URL shortening with Claude Desktop.
 
+**Author:** Martin Kessler
+
 ## Overview
 
 YOURLS-MCP creates a bridge between [Claude Desktop](https://claude.ai/download) and your self-hosted [YOURLS](https://yourls.org/) URL shortener instance. When configured, it allows Claude to automatically shorten URLs using your personal YOURLS installation.
+
+## Features
+
+- Shorten URLs using your YOURLS instance
+- Create custom short URLs with specific keywords
+- **Duplicate URL Handling:** Create multiple short URLs for the same destination URL (unique to YOURLS-MCP)
+- Expanded URL information and statistics
+- Database statistics
+- Intelligent fallbacks for plugins
+- Comprehensive documentation and testing tools
 
 ## Quick Start
 
@@ -12,7 +24,7 @@ YOURLS-MCP creates a bridge between [Claude Desktop](https://claude.ai/download)
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/yourls-mcp.git
+git clone https://github.com/kesslerio/yourls-mcp.git
 cd yourls-mcp
 
 # Install dependencies
@@ -106,12 +118,14 @@ Gets global statistics for your YOURLS instance.
 
 #### 5. create_custom_url
 
-Creates a custom short URL with a specific keyword.
+Creates a custom short URL with a specific keyword, even for URLs that already exist in the database.
 
 **Parameters:**
 - `url` (required): The target URL to shorten
 - `keyword` (required): The custom keyword for the short URL (e.g., "web" for bysha.pe/web)
 - `title` (optional): Title for the URL
+- `bypass_shortshort` (optional): Whether to bypass the ShortShort plugin that prevents shortening already-shortened URLs (default: false)
+- `force_url_modification` (optional): Whether to force using URL modification approach to create multiple short URLs for the same destination (default: false)
 
 #### 6. shorten_with_analytics
 
@@ -220,6 +234,7 @@ Once configured, Claude will be able to use the YOURLS tools with prompts like:
 - "Create a short URL with the keyword 'docs' for https://example.com/documentation"
 - "Set up a custom URL bysha.pe/web that points to shapescale.com"
 - "Create a custom short URL for our documentation using the keyword 'docs'"
+- "Create multiple keywords (docs, docs2, docs3) for the same documentation URL"
 - "Create a short URL for our campaign with UTM tracking parameters"
 - "Shorten this marketing URL with Google Analytics tracking: source=newsletter, medium=email, campaign=summer_launch"
 - "Expand this short URL: https://yourdomain.com/abc"
@@ -292,6 +307,17 @@ YOURLS-MCP acts as a bridge between Claude Desktop and your YOURLS instance:
 
 The server uses the Model Context Protocol (MCP) standard to communicate with Claude Desktop, allowing seamless integration and natural language interactions with your URL shortener.
 
+## Duplicate URL Handling
+
+YOURLS-MCP offers a unique ability to create multiple short URLs for the same destination URL, which is not natively supported in YOURLS. For detailed information about this feature, see [Duplicate URL Handling Documentation](./docs/duplicate-url-feature.md).
+
+Two approaches are supported:
+
+1. **Plugin Approach** (recommended): Uses the included Force Allow Duplicates plugin to create true duplicate URLs
+2. **URL Modification Approach** (fallback): Adds timestamp parameters to make each URL technically unique while preserving functionality
+
+The system automatically selects the appropriate approach based on your YOURLS setup.
+
 ## Compatibility with YOURLS Plugins
 
 YOURLS-MCP is designed to work with both standard YOURLS installations and various plugins, with built-in fallbacks when plugins are not available:
@@ -324,6 +350,19 @@ YOURLS-MCP includes intelligent fallbacks for extended functionality when plugin
 - **ShortShort**: Properly handles the error when trying to shorten an already shortened URL
   - *Compatibility*: Error handling works regardless of whether plugin is installed
 
+- **Allow Existing URLs**: Modifies how YOURLS handles duplicate URLs
+  - *Plugin URL*: https://github.com/elder-oss/yourls-allow-existing-urls
+  - *Note*: This plugin changes error responses to success responses but doesn't actually create new short URLs for existing destination URLs
+  - *Our solution*: YOURLS-MCP implements a URL modification approach that adds a timestamp parameter to make URLs unique in the database while preserving the user experience
+  - *Installation*: Optional - our URL modification approach works with or without this plugin installed
+
+- **Force Allow Duplicates**: Truly enables creating multiple short URLs for the same destination URL
+  - *Plugin Location*: Included in this repository at `YOURLS/user/plugins/force-allow-duplicates/`
+  - *Plugin Repository*: https://github.com/kesslerio/yourls-force-allow-duplicates
+  - *Description*: Custom plugin that bypasses YOURLS' unique URL constraint
+  - *Usage*: Add `force=1` to your API requests or use `force_url_modification=false` with the `create_custom_url` tool
+  - *Installation*: Copy the plugin directory to your YOURLS plugins folder and activate it in the admin panel
+
 ### Fallback Mechanism
 
 When a plugin-dependent feature is used but the plugin is not installed, YOURLS-MCP:
@@ -336,6 +375,44 @@ When a plugin-dependent feature is used but the plugin is not installed, YOURLS-
 
 This approach ensures that YOURLS-MCP works with as many YOURLS installations as possible, while still providing clear information about enhanced functionality available with plugins.
 
+## Development and Testing
+
+### Test Scripts
+
+The project includes various test scripts in the `tests/integration/` directory:
+
+- **URL Shortening Tests**:
+  - `test-custom-url.js`: Tests creating custom URLs with specific keywords
+  - `test-url-modification.js`: Tests URL modification approach for handling duplicate URLs
+  - `test-plugin-behavior.js`: Tests the behavior of the Allow Existing URLs plugin
+
+- **Plugin Tests**:
+  - `test-duplicate-urls.js`: Tests creating duplicate URLs with different keywords
+  - `test-plugin-approach.js`: Tests direct plugin approach for handling duplicates
+
+- **Running Tests**:
+  ```bash
+  # Run a specific test
+  node tests/integration/test-custom-url.js
+  ```
+
+### Utility Scripts
+
+The `scripts/` directory contains utility scripts for common operations:
+
+- `create-random.js`: Creates a random short URL for a specified destination
+- Other scripts for specific URL creation tasks
+
 ## License
 
 MIT
+
+## About
+
+YOURLS-MCP was created by Martin Kessler to integrate YOURLS with Claude Desktop and other Claude offerings via the Model Context Protocol (MCP).
+
+The Force Allow Duplicates plugin was developed to solve the challenge of creating multiple short URLs for the same destination, which is not natively supported in YOURLS.
+
+For support, issues, or feature requests:
+- YOURLS-MCP: https://github.com/kesslerio/yourls-mcp/issues
+- Force Allow Duplicates plugin: https://github.com/kesslerio/yourls-force-allow-duplicates/issues

@@ -156,103 +156,204 @@ export default class YourlsClient {
    * @param {string} url - URL to shorten
    * @param {string} keyword - Custom keyword
    * @param {string} [title] - Optional title
+   * @param {boolean} [bypassShortShort=false] - Whether to bypass ShortShort plugin checks
+   * @param {boolean} [forceUrlModification=false] - Whether to force using URL modification approach
    * @returns {Promise<object>} API response
    */
-  async createCustomUrl(url, keyword, title) {
+  async createCustomUrl(url, keyword, title, bypassShortShort = false, forceUrlModification = false) {
+    if (process.env.YOURLS_DEBUG === 'true') {
+      console.log(`[DEBUG] createCustomUrl called with URL: ${url}, Keyword: ${keyword}, bypassShortShort: ${bypassShortShort}, forceUrlModification: ${forceUrlModification}`);
+    }
+    
     try {
-      // First check if the URL already exists
-      const expandResult = await this.expand(keyword);
-      
-      // If we get here, the keyword already exists - check if it's for our URL
-      if (expandResult && expandResult.longurl === url) {
-        // Keyword exists and points to the same URL - return success
-        return {
-          status: 'success',
-          shorturl: `${this.api_url.replace('yourls-api.php', '')}${keyword}`,
-          url: url,
-          title: title || expandResult.title,
-          message: 'Short URL already exists with this keyword and target URL'
-        };
-      } else {
-        // Keyword exists but points to a different URL - return error
-        throw new Error(`Keyword "${keyword}" already exists and points to a different URL`);
-      }
-    } catch (error) {
-      // If the error is from expand, the keyword likely doesn't exist, so we can try to create it
-      if (error.response && error.response.status === 404) {
-        try {
-          // Try direct creation since the keyword doesn't exist
-          const result = await this.shorten(url, keyword, title);
-          return result;
-        } catch (shortenError) {
-          // If the error is because the URL already exists, we need a special approach
-          if (shortenError.response && 
-              shortenError.response.data && 
-              shortenError.response.data.code === 'error:url' && 
-              shortenError.response.data.url) {
-            
-            // URL already exists with a different keyword
-            // If the "Allow Existing URLs" plugin is installed, we can try a direct API call
-            // that bypasses the duplicate URL check
+      // Step 1: Check if the keyword already exists
+      try {
+        const expandResult = await this.expand(keyword);
+        
+        // If we get here, the keyword already exists - check if it's for our URL
+        if (expandResult && expandResult.longurl === url) {
+          // Keyword exists and points to the same URL - return success
+          if (process.env.YOURLS_DEBUG === 'true') {
+            console.log(`[DEBUG] Keyword "${keyword}" already exists and points to the same URL`);
+          }
+          
+          return {
+            status: 'success',
+            shorturl: `${this.api_url.replace('yourls-api.php', '')}${keyword}`,
+            url: url,
+            title: title || expandResult.title,
+            message: 'Short URL already exists with this keyword and target URL'
+          };
+        } else {
+          // Keyword exists but points to a different URL - return error
+          if (process.env.YOURLS_DEBUG === 'true') {
+            console.log(`[DEBUG] Keyword "${keyword}" already exists but points to a different URL`);
+          }
+          
+          throw new Error(`Keyword "${keyword}" already exists and points to a different URL`);
+        }
+      } catch (error) {
+        // Step 2: If the keyword doesn't exist (404), try to create the URL
+        if (error.response && error.response.status === 404) {
+          if (process.env.YOURLS_DEBUG === 'true') {
+            console.log(`[DEBUG] Keyword "${keyword}" does not exist yet, creating...`);
+          }
+          
+          // If forceUrlModification is true, skip directly to the URL modification approach
+          if (forceUrlModification) {
+            if (process.env.YOURLS_DEBUG === 'true') {
+              console.log('[DEBUG] Skipping plugin approach and using URL modification as requested');
+            }
+          } else {
+            // Step 2.1: First try with direct request to the Allow Existing URLs plugin
+            // This is the most direct approach that should work if the plugin is properly installed
+            if (process.env.YOURLS_DEBUG === 'true') {
+              console.log(`[DEBUG] Attempting direct approach with Allow Existing URLs plugin (force=1)`);
+            }
+          
             try {
-              console.log('[DEBUG] Attempting Allow Existing URLs plugin approach...');
-              // Make a direct API call with the action parameter set to 'shorturl'
-              // This should work with the "Allow Existing URLs" plugin
-              const directParams = {
+              // Create params with force=1 for Allow Existing URLs plugin
+              const params = {
+                action: 'shorturl',
                 url: url,
                 keyword: keyword,
-                // Try several possible parameters that the plugin might use
-                allow_duplicates: '1',         // Possible parameter name
-                allow_existing: '1',           // Possible parameter name
-                force: '1',                    // Possible parameter name
-                allow_existing_url: '1',       // Possible parameter name
-                allow_duplicate_longurls: '1'  // Possible parameter name
+                title: title || '',
+                format: 'json',
+                force: '1'  // This is the key parameter for Allow Existing URLs plugin
               };
-              if (title) directParams.title = title;
               
-              console.log('[DEBUG] Direct API call params:', JSON.stringify(directParams));
-              const directResult = await this.request('shorturl', directParams);
-              console.log('[DEBUG] Direct API call result:', JSON.stringify(directResult));
-              
-              // If we get here, the plugin is working and allowed the duplicate URL
-              if (directResult.status === 'success' || directResult.shorturl) {
-                console.log('[DEBUG] Allow Existing URLs plugin success!');
-                return directResult;
+              // Add bypass parameter if requested
+              if (bypassShortShort) {
+                params.bypass = '1';
               }
               
-              console.log('[DEBUG] Allow Existing URLs plugin did not succeed, falling back...');
-              // If the direct call didn't work, fall back to the original behavior
-              return {
-                status: 'success',
-                message: 'URL already exists with different keyword',
-                existingUrl: shortenError.response.data.url,
-                existingKeyword: shortenError.response.data.url.keyword,
-                existingShorturl: shortenError.response.data.shorturl,
-                requestedKeyword: keyword,
-                url: url,
-                title: title || shortenError.response.data.title
-              };
-            } catch (directError) {
-              // If the direct call fails, fall back to the original behavior
-              return {
-                status: 'success',
-                message: 'URL already exists with different keyword',
-                existingUrl: shortenError.response.data.url,
-                existingKeyword: shortenError.response.data.url.keyword,
-                existingShorturl: shortenError.response.data.shorturl,
-                requestedKeyword: keyword,
-                url: url,
-                title: title || shortenError.response.data.title
-              };
+              // Add authentication
+              if (this.auth_method === 'password') {
+                params.username = this.username;
+                params.password = this.password;
+              } else {
+                Object.assign(params, this._getSignatureAuth());
+              }
+              
+              // Direct POST request using URLSearchParams to ensure correct parameter format
+              if (process.env.YOURLS_DEBUG === 'true') {
+                const debugParams = {...params};
+                if (debugParams.password) debugParams.password = '********';
+                if (debugParams.signature) debugParams.signature = '********';
+                console.log(`[DEBUG] Direct request params: ${JSON.stringify(debugParams)}`);
+              }
+              
+              const response = await axios.post(this.api_url, new URLSearchParams(params), {
+                headers: {
+                  'Content-Type': 'application/x-www-form-urlencoded'
+                }
+              });
+              
+              const forceResult = response.data;
+              
+              if (process.env.YOURLS_DEBUG === 'true') {
+                console.log(`[DEBUG] Direct request response: ${JSON.stringify(forceResult)}`);
+              }
+              
+              // Check if it was successful
+              if (forceResult.status === 'success' && forceResult.shorturl) {
+                if (process.env.YOURLS_DEBUG === 'true') {
+                  console.log(`[DEBUG] Successfully created with Allow Existing URLs plugin`);
+                }
+                
+                // Successful! Return the result
+                return forceResult;
+              }
+              
+              // If we get here, something went wrong with the force approach
+              if (process.env.YOURLS_DEBUG === 'true') {
+                console.log(`[DEBUG] Allow Existing URLs plugin didn't work as expected, trying URL modification approach`);
+              }
+            } catch (forceError) {
+              // Log the error but continue to the next approach
+              if (process.env.YOURLS_DEBUG === 'true') {
+                console.log(`[DEBUG] Allow Existing URLs plugin approach failed: ${forceError.message}`);
+                if (forceError.response && forceError.response.data) {
+                  console.log(`[DEBUG] Error response: ${JSON.stringify(forceError.response.data)}`);
+                }
+              }
             }
           }
           
-          // For other shortening errors, throw them
-          throw shortenError;
+          // Step 2.2: If "force" parameter didn't work, try the URL modification approach
+          if (process.env.YOURLS_DEBUG === 'true') {
+            console.log('[DEBUG] Trying URL modification approach as fallback');
+          }
+          
+          // Modify the URL by adding a timestamp parameter to make it unique
+          const timestamp = Date.now();
+          const modifiedUrl = url + (url.includes('?') ? '&' : '?') + '_t=' + timestamp;
+          
+          try {
+            // Try to create a short URL with the modified URL
+            let modifiedResult;
+            try {
+              if (bypassShortShort) {
+                modifiedResult = await this.request('shorturl', {
+                  url: modifiedUrl,
+                  keyword: keyword,
+                  title: title,
+                  bypass: '1'
+                });
+              } else {
+                modifiedResult = await this.shorten(modifiedUrl, keyword, title);
+              }
+              
+              // If successful, customize the response to show the original URL
+              if (modifiedResult.status === 'success' && modifiedResult.shorturl) {
+                if (process.env.YOURLS_DEBUG === 'true') {
+                  console.log(`[DEBUG] URL modification approach successful`);
+                }
+                
+                return {
+                  ...modifiedResult,
+                  display_url: url,           // Original URL for display
+                  internal_url: modifiedUrl,  // Modified URL that's actually stored
+                  url: url,                   // Override the URL in the response
+                  message: 'New short URL created successfully'
+                };
+              }
+            } catch (modifiedError) {
+              // If this is a ShortShort error and we haven't tried bypassing it yet
+              if (!bypassShortShort && 
+                  modifiedError.response && 
+                  modifiedError.response.data && 
+                  modifiedError.response.data.code === 'error:bypass') {
+                
+                if (process.env.YOURLS_DEBUG === 'true') {
+                  console.log('[DEBUG] Detected ShortShort plugin error, retrying with bypass parameter');
+                }
+                
+                // Try again with bypass parameter
+                return this.createCustomUrl(url, keyword, title, true);
+              } else {
+                // For other errors, continue with the next fallback
+                if (process.env.YOURLS_DEBUG === 'true') {
+                  console.log('[DEBUG] URL modification approach with shortening failed:', modifiedError.message);
+                }
+                throw modifiedError;
+              }
+            }
+          } catch (error) {
+            // If all fallback approaches failed, provide a clear error
+            if (process.env.YOURLS_DEBUG === 'true') {
+              console.log('[DEBUG] All approaches failed:', error.message);
+            }
+            
+            throw new Error(`Unable to create custom URL with keyword "${keyword}" for URL "${url}". The Allow Existing URLs plugin may not be installed or configured correctly, and all fallback approaches failed.`);
+          }
+        } else {
+          // For errors other than 404 (keyword not found), pass them through
+          throw error;
         }
       }
-      
-      // For other errors, just throw them
+    } catch (error) {
+      console.error('CreateCustomUrl error:', error.message);
       throw error;
     }
   }
