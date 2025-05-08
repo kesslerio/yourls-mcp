@@ -357,11 +357,13 @@ YOURLS-MCP includes intelligent fallbacks for extended functionality when plugin
   - *Installation*: Optional - our URL modification approach works with or without this plugin installed
 
 - **Force Allow Duplicates**: Truly enables creating multiple short URLs for the same destination URL
-  - *Plugin Location*: Included in this repository at `YOURLS/user/plugins/force-allow-duplicates/`
-  - *Plugin Repository*: https://github.com/kesslerio/yourls-force-allow-duplicates
+  - *Plugin Repository*: https://github.com/kesslerio/yourls-force-allow-duplicates (coming soon)
   - *Description*: Custom plugin that bypasses YOURLS' unique URL constraint
   - *Usage*: Add `force=1` to your API requests or use `force_url_modification=false` with the `create_custom_url` tool
-  - *Installation*: Copy the plugin directory to your YOURLS plugins folder and activate it in the admin panel
+  - *Installation*: 
+    1. Download from the plugin repository
+    2. Copy the `force-allow-duplicates` folder to your `YOURLS/user/plugins/` directory
+    3. Activate the plugin in your YOURLS admin interface
 
 ### Fallback Mechanism
 
@@ -415,4 +417,4 @@ The Force Allow Duplicates plugin was developed to solve the challenge of creati
 
 For support, issues, or feature requests:
 - YOURLS-MCP: https://github.com/kesslerio/yourls-mcp/issues
-- Force Allow Duplicates plugin: https://github.com/kesslerio/yourls-force-allow-duplicates/issues
+- Force Allow Duplicates plugin: https://github.com/kesslerio/yourls-force-allow-duplicates/issues (once repository is created)
