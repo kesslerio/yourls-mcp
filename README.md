@@ -294,17 +294,47 @@ The server uses the Model Context Protocol (MCP) standard to communicate with Cl
 
 ## Compatibility with YOURLS Plugins
 
-YOURLS-MCP is designed to work with both standard YOURLS installations and various plugins:
+YOURLS-MCP is designed to work with both standard YOURLS installations and various plugins, with built-in fallbacks when plugins are not available:
 
-### Supported Plugins
+### Supported Plugins with Fallbacks
+
+YOURLS-MCP includes intelligent fallbacks for extended functionality when plugins are not installed:
 
 - **API ShortURL Analytics**: For detailed click statistics with date ranges
+  - *Fallback behavior*: Provides basic click statistics through core YOURLS API when the plugin is not available
+
 - **API Contract**: To check if URLs exist without creating them
+  - *Fallback behavior*: Uses core YOURLS stats API to search for existing URLs with filtering
+
 - **API Edit URL**: For updating short URLs and changing keywords
+  - *Fallback behavior*: 
+    - For updating URLs: Attempts to re-create the URL with the same keyword
+    - For changing keywords: Creates a new short URL with the new keyword (old one remains, as deletion requires API Delete plugin)
+    - For getting URL keywords: Uses core YOURLS stats API with filtering
+
 - **API Delete**: For removing short URLs
+  - *Fallback behavior*: Limited - provides information that deletion requires the plugin, as core YOURLS API doesn't support deletion
+
 - **API List Extended**: For enhanced URL listing with sorting and filtering
+  - *Fallback behavior*: Uses core YOURLS stats API with client-side sorting and pagination
+
 - **YOURLS-IQRCodes**: For generating QR codes from short URLs
+  - *Fallback behavior*: None - requires the plugin to be installed
+
 - **ShortShort**: Properly handles the error when trying to shorten an already shortened URL
+  - *Compatibility*: Error handling works regardless of whether plugin is installed
+
+### Fallback Mechanism
+
+When a plugin-dependent feature is used but the plugin is not installed, YOURLS-MCP:
+
+1. Automatically detects missing plugins
+2. Provides appropriate fallback functionality where possible
+3. Includes a `fallback_used: true` attribute in responses when fallbacks are activated
+4. Adds `fallback_limitations` information when the fallback has reduced functionality
+5. For completely unsupported operations, returns informative error messages
+
+This approach ensures that YOURLS-MCP works with as many YOURLS installations as possible, while still providing clear information about enhanced functionality available with plugins.
 
 ## License
 

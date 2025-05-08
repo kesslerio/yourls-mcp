@@ -189,6 +189,36 @@ If Claude cannot connect to your YOURLS instance, check:
 
 If errors persist, check the Claude Desktop logs for more detailed error messages related to the MCP server.
 
+### YOURLS Plugins and Fallbacks
+
+YOURLS-MCP works best with certain plugins installed on your YOURLS instance, but includes fallbacks for most functionality:
+
+#### Plugin-Dependent Features
+
+Some features may show different behavior depending on whether certain plugins are installed:
+
+1. **URL Listing and Filtering**
+   - With API List Extended plugin: Full sorting and filtering capabilities
+   - Without plugin: Basic listing with client-side sorting and limited filtering
+
+2. **URL Updating**
+   - With API Edit URL plugin: Full URL updating capabilities
+   - Without plugin: Limited - attempts to recreate URLs with same keywords
+
+3. **Keyword Changing**
+   - With API Edit URL plugin: Seamless keyword changes
+   - Without plugin: Creates new keyword but can't delete old one (requires API Delete plugin)
+
+4. **URL Deletion**
+   - With API Delete plugin: Full deletion support
+   - Without plugin: Not supported - will show a message explaining the limitation
+
+5. **Contract URL (URL Existence Check)**
+   - With API Contract plugin: Efficient direct checking
+   - Without plugin: Uses stats API with filtering (may be slower for large databases)
+
+When a fallback is used, Claude will typically mention this in its responses, particularly if there are limitations to the functionality. For optimal experience, consider installing the recommended plugins in your YOURLS instance.
+
 ### Common Error Messages
 
 #### ShortShort Plugin Errors
