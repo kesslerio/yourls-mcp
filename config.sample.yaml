@@ -5,9 +5,19 @@ yourls:
   # URL to your YOURLS API endpoint
   api_url: "https://your-yourls-domain.com/yourls-api.php"
   
-  # Authentication details
-  username: "your-username"
-  password: "your-password"
+  # Authentication method: "password" or "signature"
+  auth_method: "signature"
+  
+  # For password authentication (only needed if auth_method is "password")
+  username: ""
+  password: ""
+  
+  # For signature authentication (only needed if auth_method is "signature")
+  # Your secret signature token from YOURLS admin interface
+  signature_token: ""
+  
+  # Optional: Signature time-to-live in seconds (default: 43200 = 12 hours)
+  signature_ttl: 43200
   
   # Optional: Default domain for shortened URLs (leave empty to use YOURLS default)
   # domain: "https://short.domain"

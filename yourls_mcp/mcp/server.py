@@ -27,18 +27,40 @@ def create_server(config_path: Optional[str] = None) -> FastMCP:
         raise ValueError("Missing YOURLS configuration. Please check your config file.")
     
     yourls_config = config['yourls']
-    required_keys = ['api_url', 'username', 'password']
+    
+    # Check for required keys based on authentication method
+    auth_method = yourls_config.get('auth_method', 'password')
+    if auth_method == 'password':
+        required_keys = ['api_url', 'username', 'password']
+    elif auth_method == 'signature':
+        required_keys = ['api_url', 'signature_token']
+    else:
+        raise ValueError(f"Invalid authentication method: {auth_method}. Use 'password' or 'signature'")
+    
     missing_keys = [key for key in required_keys if key not in yourls_config]
     
     if missing_keys:
         raise ValueError(f"Missing required YOURLS configuration keys: {', '.join(missing_keys)}")
     
     # Create YOURLS client
-    client = YourlsClient(
-        api_url=yourls_config['api_url'],
-        username=yourls_config['username'],
-        password=yourls_config['password']
-    )
+    auth_method = yourls_config.get('auth_method', 'password')
+    
+    if auth_method == 'password':
+        client = YourlsClient(
+            api_url=yourls_config['api_url'],
+            auth_method='password',
+            username=yourls_config['username'],
+            password=yourls_config['password']
+        )
+    elif auth_method == 'signature':
+        client = YourlsClient(
+            api_url=yourls_config['api_url'],
+            auth_method='signature',
+            signature_token=yourls_config['signature_token'],
+            signature_ttl=yourls_config.get('signature_ttl', 43200)
+        )
+    else:
+        raise ValueError(f"Invalid authentication method: {auth_method}. Use 'password' or 'signature'")
     
     # Create MCP server
     server = FastMCP(

@@ -20,10 +20,21 @@ This guide explains how to set up and use the YOURLS-MCP server with Claude Desk
    cp config.sample.yaml config.yaml
    ```
 
-4. Edit the configuration file with your YOURLS details:
+4. Edit the configuration file with your YOURLS details.
+   
+   For signature-based authentication (recommended for better security):
    ```yaml
    yourls:
      api_url: "https://your-yourls-domain.com/yourls-api.php"
+     auth_method: "signature"
+     signature_token: "your-secret-signature-token" # From YOURLS admin interface
+   ```
+   
+   Or for username/password authentication:
+   ```yaml
+   yourls:
+     api_url: "https://your-yourls-domain.com/yourls-api.php"
+     auth_method: "password"
      username: "your-username"
      password: "your-password"
    ```
