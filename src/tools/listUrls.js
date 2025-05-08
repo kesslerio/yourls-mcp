@@ -2,6 +2,7 @@
  * YOURLS-MCP Tool: Get a list of URLs with sorting, pagination, and filtering options
  */
 import { z } from 'zod';
+import { createMcpResponse } from '../utils.js';
 
 /**
  * Creates the list URLs tool
@@ -77,46 +78,42 @@ export default function createListUrlsTool(yourlsClient) {
           }
         }
         
+        // Use the listUrls method with fallback enabled
         const result = await yourlsClient.listUrls({
           sortby,
           sortorder,
           offset: offset !== undefined ? Number(offset) : undefined,
           perpage: perpage !== undefined ? Number(perpage) : undefined,
           query,
-          fields: normalizedFields
+          fields: normalizedFields,
+          useNativeFallback: true
         });
         
-        if (result.message === 'success') {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  status: 'success',
-                  total: result.total,
-                  offset: result.offset,
-                  perpage: result.perpage,
-                  results: result.result || []
-                })
-              }
-            ]
+        if (result.status === 'success') {
+          const responseData = {
+            total: result.total,
+            page: result.page || 1,
+            perpage: result.perpage,
+            links: result.links || {},
+            results: result.result || []
           };
+          
+          // Add fallback information if applicable
+          if (result.fallback_used) {
+            responseData.fallback_used = true;
+            if (result.fallback_limitations) {
+              responseData.fallback_limitations = result.fallback_limitations;
+            }
+          }
+          
+          return createMcpResponse(true, responseData);
         } else {
           throw new Error(result.message || 'Unknown error');
         }
       } catch (error) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({
-                status: 'error',
-                message: error.message
-              })
-            }
-          ],
-          isError: true
-        };
+        return createMcpResponse(false, {
+          message: error.message
+        });
       }
     }
   };

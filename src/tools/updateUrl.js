@@ -2,6 +2,7 @@
  * YOURLS-MCP Tool: Update a short URL to point to a different destination
  */
 import { z } from 'zod';
+import { createMcpResponse } from '../utils.js';
 
 /**
  * Creates the update URL tool
@@ -33,40 +34,38 @@ export default function createUpdateUrlTool(yourlsClient) {
     },
     execute: async ({ shorturl, url, title }) => {
       try {
-        const result = await yourlsClient.updateUrl(shorturl, url, title);
+        // Use the updateUrl method with fallback enabled
+        const result = await yourlsClient.updateUrl(shorturl, url, title, true);
         
-        if (result.message === 'success: updated') {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  status: 'success',
-                  shorturl: shorturl,
-                  url: url,
-                  message: result.simple || 'Short URL updated successfully'
-                })
-              }
-            ]
+        // Check for both plugin success message and fallback success messages
+        if (result.status === 'success' || result.message === 'success: updated') {
+          const responseData = {
+            shorturl: result.shorturl || shorturl,
+            url: url,
+            message: result.message || 'Short URL updated successfully'
           };
+          
+          // Add fallback information if applicable
+          if (result.fallback_used) {
+            responseData.fallback_used = true;
+            if (result.fallback_limited) {
+              responseData.fallback_limited = true;
+            }
+            if (result.fallback_limitations) {
+              responseData.fallback_limitations = result.fallback_limitations;
+            }
+          }
+          
+          return createMcpResponse(true, responseData);
         } else {
           throw new Error(result.message || 'Unknown error');
         }
       } catch (error) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({
-                status: 'error',
-                message: error.message,
-                shorturl: shorturl,
-                url: url
-              })
-            }
-          ],
-          isError: true
-        };
+        return createMcpResponse(false, {
+          message: error.message,
+          shorturl: shorturl,
+          url: url
+        });
       }
     }
   };

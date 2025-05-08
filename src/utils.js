@@ -2,6 +2,16 @@
  * Shared utility functions for YOURLS-MCP
  */
 
+// Plugin availability cache to avoid repeated checks
+const pluginAvailability = {
+  contract: null,
+  edit_url: null,
+  delete: null,
+  list_extended: null,
+  analytics: null,
+  qrcode: null,
+};
+
 /**
  * Checks if an error is from a missing plugin action
  * 
@@ -12,7 +22,56 @@ export function isPluginMissingError(error) {
   return error.response && 
     error.response.data && 
     (error.response.data.message === 'Unknown or missing action' ||
-     error.response.data.message?.includes('Unknown action'));
+     error.response.data.message?.includes('Unknown action') ||
+     error.response.data.message?.includes('Unknown method'));
+}
+
+/**
+ * Check if a specific YOURLS plugin is available
+ * 
+ * @param {object} yourlsClient - The YOURLS API client instance
+ * @param {string} pluginKey - Which plugin to check for
+ * @param {string} testAction - The API action to test
+ * @param {object} [testParams={}] - Optional parameters for the test request
+ * @returns {Promise<boolean>} Whether the plugin is available
+ */
+export async function isPluginAvailable(yourlsClient, pluginKey, testAction, testParams = {}) {
+  // Check cache first
+  if (pluginAvailability[pluginKey] !== null) {
+    return pluginAvailability[pluginKey];
+  }
+  
+  try {
+    // Make a test request to see if the plugin action is available
+    await yourlsClient.request(testAction, testParams);
+    pluginAvailability[pluginKey] = true;
+    return true;
+  } catch (error) {
+    // If we get an error about unknown action, the plugin isn't available
+    if (isPluginMissingError(error)) {
+      pluginAvailability[pluginKey] = false;
+      return false;
+    }
+    
+    // Other errors indicate the plugin is available but there was another issue
+    pluginAvailability[pluginKey] = true;
+    return true;
+  }
+}
+
+/**
+ * Reset plugin availability cache
+ * 
+ * @param {string} [pluginKey] - Optional specific plugin to reset
+ */
+export function resetPluginAvailabilityCache(pluginKey) {
+  if (pluginKey) {
+    pluginAvailability[pluginKey] = null;
+  } else {
+    Object.keys(pluginAvailability).forEach(key => {
+      pluginAvailability[key] = null;
+    });
+  }
 }
 
 /**

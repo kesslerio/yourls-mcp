@@ -2,6 +2,7 @@
  * YOURLS-MCP Tool: Change the keyword of an existing short URL
  */
 import { z } from 'zod';
+import { createMcpResponse } from '../utils.js';
 
 /**
  * Creates the change keyword tool
@@ -37,40 +38,38 @@ export default function createChangeKeywordTool(yourlsClient) {
     },
     execute: async ({ oldshorturl, newshorturl, url, title }) => {
       try {
-        const result = await yourlsClient.changeKeyword(oldshorturl, newshorturl, url, title);
+        // Use the changeKeyword method with fallback enabled
+        const result = await yourlsClient.changeKeyword(oldshorturl, newshorturl, url, title, true);
         
-        if (result.message === 'success: updated') {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  status: 'success',
-                  oldshorturl: oldshorturl,
-                  newshorturl: newshorturl,
-                  message: result.simple || 'Keyword changed successfully'
-                })
-              }
-            ]
+        if (result.status === 'success' || result.message === 'success: updated' || result.statusCode === 200) {
+          const responseData = {
+            message: result.message || result.simple || `Keyword changed from '${oldshorturl}' to '${newshorturl}'`,
+            oldshorturl: oldshorturl,
+            newshorturl: newshorturl,
+            shorturl: result.shorturl
           };
+          
+          // Add fallback information if applicable
+          if (result.fallback_used) {
+            responseData.fallback_used = true;
+            if (result.fallback_limited) {
+              responseData.fallback_limited = true;
+            }
+            if (result.fallback_limitations) {
+              responseData.fallback_limitations = result.fallback_limitations;
+            }
+          }
+          
+          return createMcpResponse(true, responseData);
         } else {
           throw new Error(result.message || 'Unknown error');
         }
       } catch (error) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({
-                status: 'error',
-                message: error.message,
-                oldshorturl: oldshorturl,
-                newshorturl: newshorturl
-              })
-            }
-          ],
-          isError: true
-        };
+        return createMcpResponse(false, {
+          message: error.message,
+          oldshorturl: oldshorturl,
+          newshorturl: newshorturl
+        });
       }
     }
   };

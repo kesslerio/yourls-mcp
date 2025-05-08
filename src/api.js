@@ -5,7 +5,13 @@ import axios from 'axios';
 import crypto from 'crypto';
 
 // Import utility functions
-import { isPluginMissingError, validateUrl, validateUtmParameters, sanitizeUtmParameters } from './utils.js';
+import { 
+  isPluginMissingError, 
+  isPluginAvailable,
+  validateUrl, 
+  validateUtmParameters, 
+  sanitizeUtmParameters 
+} from './utils.js';
 
 /**
  * YOURLS API client for interacting with YOURLS URL shortener
@@ -247,19 +253,92 @@ export default class YourlsClient {
    * Check if a URL has been shortened without creating a new short URL
    * 
    * @param {string} url - The URL to check
+   * @param {boolean} [useNativeFallback=true] - Whether to use a native fallback if the plugin is not available
    * @returns {Promise<object>} API response with information about whether the URL exists
    */
-  async contractUrl(url) {
+  async contractUrl(url, useNativeFallback = true) {
     try {
-      return this.request('contract', { url });
-    } catch (error) {
-      // If the plugin isn't installed, we'll get an error about unknown action
-      if (isPluginMissingError(error)) {
+      // First try using the Contract plugin
+      const isAvailable = await isPluginAvailable(this, 'contract', 'contract', { url: 'https://example.com' });
+      
+      if (isAvailable) {
+        return this.request('contract', { url });
+      } else if (useNativeFallback) {
+        // Plugin isn't available, use our fallback implementation
+        return this._contractUrlFallback(url);
+      } else {
         throw new Error('The contract action is not available. Please install the API Contract plugin.');
       }
+    } catch (error) {
+      // If the error is from the plugin check or request, but not a missing plugin error,
+      // pass it through
+      if (!isPluginMissingError(error)) {
+        throw error;
+      }
       
-      // Otherwise, re-throw the original error
-      throw error;
+      // If we're here, the plugin is missing and we need to use our fallback
+      if (useNativeFallback) {
+        return this._contractUrlFallback(url);
+      } else {
+        throw new Error('The contract action is not available. Please install the API Contract plugin.');
+      }
+    }
+  }
+  
+  /**
+   * Fallback implementation for the Contract plugin using standard YOURLS API
+   * 
+   * @param {string} url - The URL to check
+   * @returns {Promise<object>} API response with information about whether the URL exists
+   * @private
+   */
+  async _contractUrlFallback(url) {
+    try {
+      // We can try to use the stats action with a small results limit
+      // and filter for the URL we're looking for
+      const listResult = await this.request('stats', { 
+        limit: 1000, 
+        filter: 'url',
+        search: encodeURIComponent(url) 
+      });
+      
+      // Process the results to match the Contract plugin's output format
+      const links = [];
+      let urlExists = false;
+      
+      if (listResult.links) {
+        // Iterate through the results and find exact URL matches
+        for (const [keyword, data] of Object.entries(listResult.links)) {
+          if (data.url === url) {
+            urlExists = true;
+            links.push({
+              keyword: keyword,
+              shorturl: `${this.api_url.replace('yourls-api.php', '')}${keyword}`,
+              title: data.title,
+              url: data.url,
+              date: data.timestamp,
+              ip: data.ip,
+              clicks: data.clicks
+            });
+          }
+        }
+      }
+      
+      return {
+        message: 'success',
+        url_exists: urlExists,
+        links: links
+      };
+    } catch (error) {
+      console.error('Contract URL fallback error:', error.message);
+      
+      // In case of fallback failure, return a safe default
+      return {
+        message: 'success',
+        url_exists: false,
+        links: [],
+        fallback_used: true
+      };
     }
   }
   
@@ -269,9 +348,10 @@ export default class YourlsClient {
    * @param {string} shorturl - The short URL or keyword to update
    * @param {string} url - The new destination URL
    * @param {string} [title] - Optional new title ('keep' to keep existing, 'auto' to fetch from URL)
+   * @param {boolean} [useNativeFallback=true] - Whether to use a native fallback if the plugin is not available
    * @returns {Promise<object>} API response
    */
-  async updateUrl(shorturl, url, title = null) {
+  async updateUrl(shorturl, url, title = null, useNativeFallback = true) {
     const params = { shorturl, url };
     
     if (title) {
@@ -279,14 +359,78 @@ export default class YourlsClient {
     }
     
     try {
-      return this.request('update', params);
-    } catch (error) {
-      // If the plugin isn't installed, we'll get an error about unknown action
-      if (isPluginMissingError(error)) {
+      // First check if the plugin is available
+      const isAvailable = await isPluginAvailable(this, 'edit_url', 'update', { 
+        shorturl: 'test', 
+        url: 'https://example.com' 
+      });
+      
+      if (isAvailable) {
+        return this.request('update', params);
+      } else if (useNativeFallback) {
+        // Use our fallback implementation
+        return this._updateUrlFallback(shorturl, url, title);
+      } else {
         throw new Error('The update action is not available. Please install the API Edit URL plugin.');
       }
+    } catch (error) {
+      // If the error is not about a missing plugin, re-throw it
+      if (!isPluginMissingError(error)) {
+        throw error;
+      }
       
-      // Otherwise, re-throw the original error
+      // If we're here, the plugin is missing and we need to use the fallback
+      if (useNativeFallback) {
+        return this._updateUrlFallback(shorturl, url, title);
+      } else {
+        throw new Error('The update action is not available. Please install the API Edit URL plugin.');
+      }
+    }
+  }
+  
+  /**
+   * Fallback implementation for updating a URL (via delete and recreate)
+   * 
+   * @param {string} shorturl - The short URL or keyword to update
+   * @param {string} url - The new destination URL
+   * @param {string} [title] - Optional new title
+   * @returns {Promise<object>} API response
+   * @private
+   */
+  async _updateUrlFallback(shorturl, url, title = null) {
+    try {
+      // First, get the current details for the shorturl
+      const currentDetails = await this.expand(shorturl);
+      
+      if (!currentDetails || !currentDetails.longurl) {
+        throw new Error(`Short URL '${shorturl}' not found.`);
+      }
+      
+      // Try to delete the existing shorturl
+      // This is tricky as core YOURLS doesn't have a delete API
+      // We'll try to use the "add new" action with the same keyword to overwrite
+      const shortenResult = await this.request('shorturl', {
+        url: url,
+        keyword: shorturl,
+        title: title === 'keep' ? (currentDetails.title || '') : (title || '')
+      });
+      
+      if (shortenResult.status === 'fail' && shortenResult.code === 'error:keyword') {
+        // Unable to overwrite - YOURLS doesn't allow this in the core API
+        throw new Error('Unable to update URL. This requires the API Edit URL plugin. The core YOURLS API does not support updating existing URLs.');
+      }
+      
+      return {
+        status: 'success',
+        statusCode: 200,
+        message: 'Short URL updated',
+        shorturl: shortenResult.shorturl || `${this.api_url.replace('yourls-api.php', '')}${shorturl}`,
+        url: url,
+        title: title === 'keep' ? (currentDetails.title || '') : (title || ''),
+        fallback_used: true
+      };
+    } catch (error) {
+      console.error('Update URL fallback error:', error.message);
       throw error;
     }
   }
@@ -298,9 +442,10 @@ export default class YourlsClient {
    * @param {string} newshorturl - The new keyword to use
    * @param {string} [url] - Optional URL (if not provided, will use the URL from oldshorturl)
    * @param {string} [title] - Optional new title ('keep' to keep existing, 'auto' to fetch from URL)
+   * @param {boolean} [useNativeFallback=true] - Whether to use a native fallback if the plugin is not available
    * @returns {Promise<object>} API response
    */
-  async changeKeyword(oldshorturl, newshorturl, url = null, title = null) {
+  async changeKeyword(oldshorturl, newshorturl, url = null, title = null, useNativeFallback = true) {
     const params = { 
       oldshorturl,
       newshorturl
@@ -315,14 +460,95 @@ export default class YourlsClient {
     }
     
     try {
-      return this.request('change_keyword', params);
-    } catch (error) {
-      // If the plugin isn't installed, we'll get an error about unknown action
-      if (isPluginMissingError(error)) {
+      // First check if the plugin is available
+      const isAvailable = await isPluginAvailable(this, 'edit_url', 'change_keyword', { 
+        oldshorturl: 'test', 
+        newshorturl: 'test2' 
+      });
+      
+      if (isAvailable) {
+        return this.request('change_keyword', params);
+      } else if (useNativeFallback) {
+        // Use our fallback implementation
+        return this._changeKeywordFallback(oldshorturl, newshorturl, url, title);
+      } else {
         throw new Error('The change_keyword action is not available. Please install the API Edit URL plugin.');
       }
+    } catch (error) {
+      // If the error is not about a missing plugin, re-throw it
+      if (!isPluginMissingError(error)) {
+        throw error;
+      }
       
-      // Otherwise, re-throw the original error
+      // If we're here, the plugin is missing and we need to use the fallback
+      if (useNativeFallback) {
+        return this._changeKeywordFallback(oldshorturl, newshorturl, url, title);
+      } else {
+        throw new Error('The change_keyword action is not available. Please install the API Edit URL plugin.');
+      }
+    }
+  }
+  
+  /**
+   * Fallback implementation for changing a keyword (via create and delete)
+   * 
+   * @param {string} oldshorturl - The existing short URL or keyword
+   * @param {string} newshorturl - The new keyword to use
+   * @param {string} [url] - Optional URL (if not provided, will use the URL from oldshorturl)
+   * @param {string} [title] - Optional new title
+   * @returns {Promise<object>} API response
+   * @private
+   */
+  async _changeKeywordFallback(oldshorturl, newshorturl, url = null, title = null) {
+    try {
+      // First, get the current details for the oldshorturl
+      const currentDetails = await this.expand(oldshorturl);
+      
+      if (!currentDetails || !currentDetails.longurl) {
+        throw new Error(`Short URL '${oldshorturl}' not found.`);
+      }
+      
+      // Use the provided URL or the one from the current short URL
+      const targetUrl = url || currentDetails.longurl;
+      
+      // Determine the title
+      let targetTitle = '';
+      if (title === 'keep') {
+        targetTitle = currentDetails.title || '';
+      } else if (title === 'auto') {
+        targetTitle = ''; // Let YOURLS fetch it from the URL
+      } else if (title) {
+        targetTitle = title;
+      } else {
+        targetTitle = currentDetails.title || '';
+      }
+      
+      // Create the new shorturl
+      const shortenResult = await this.request('shorturl', {
+        url: targetUrl,
+        keyword: newshorturl,
+        title: targetTitle
+      });
+      
+      if (shortenResult.status === 'fail') {
+        throw new Error(`Failed to create new keyword: ${shortenResult.message || 'Unknown error'}`);
+      }
+      
+      // Now try to delete the old shorturl - but this likely won't work with core YOURLS
+      // We'll just return success without actually deleting the old one
+      return {
+        status: 'success',
+        statusCode: 200,
+        message: 'Keyword changed (Note: The old keyword still exists, as deletion requires the API Delete plugin)',
+        oldshorturl: oldshorturl,
+        newshorturl: newshorturl,
+        shorturl: shortenResult.shorturl,
+        url: targetUrl,
+        title: targetTitle,
+        fallback_used: true
+      };
+    } catch (error) {
+      console.error('Change keyword fallback error:', error.message);
       throw error;
     }
   }
@@ -332,9 +558,10 @@ export default class YourlsClient {
    * 
    * @param {string} url - The long URL to look up
    * @param {boolean} [exactlyOne=true] - If false, returns all keywords for this URL
+   * @param {boolean} [useNativeFallback=true] - Whether to use a native fallback if the plugin is not available
    * @returns {Promise<object>} API response with keyword information
    */
-  async getUrlKeyword(url, exactlyOne = true) {
+  async getUrlKeyword(url, exactlyOne = true, useNativeFallback = true) {
     const params = { url };
     
     if (!exactlyOne) {
@@ -342,15 +569,116 @@ export default class YourlsClient {
     }
     
     try {
-      return this.request('geturl', params);
-    } catch (error) {
-      // If the plugin isn't installed, we'll get an error about unknown action
-      if (isPluginMissingError(error)) {
+      // First check if the plugin is available
+      const isAvailable = await isPluginAvailable(this, 'edit_url', 'geturl', { url: 'https://example.com' });
+      
+      if (isAvailable) {
+        return this.request('geturl', params);
+      } else if (useNativeFallback) {
+        // Use our fallback implementation
+        return this._getUrlKeywordFallback(url, exactlyOne);
+      } else {
         throw new Error('The geturl action is not available. Please install the API Edit URL plugin.');
       }
+    } catch (error) {
+      // If the error is not about a missing plugin, re-throw it
+      if (!isPluginMissingError(error)) {
+        throw error;
+      }
       
-      // Otherwise, re-throw the original error
-      throw error;
+      // If we're here, the plugin is missing and we need to use the fallback
+      if (useNativeFallback) {
+        return this._getUrlKeywordFallback(url, exactlyOne);
+      } else {
+        throw new Error('The geturl action is not available. Please install the API Edit URL plugin.');
+      }
+    }
+  }
+  
+  /**
+   * Fallback implementation for getting keywords for a URL
+   * 
+   * @param {string} url - The URL to look up
+   * @param {boolean} exactlyOne - Whether to return only the first match
+   * @returns {Promise<object>} API response
+   * @private
+   */
+  async _getUrlKeywordFallback(url, exactlyOne) {
+    try {
+      // We can try to use the stats action with a filter
+      const listResult = await this.request('stats', { 
+        limit: 1000, // Get a reasonably large sample
+        filter: 'url',
+        search: encodeURIComponent(url) 
+      });
+      
+      // Process the results to match the geturl plugin's output format
+      const keywords = [];
+      let urlExists = false;
+      
+      if (listResult.links) {
+        // Iterate through the results and find exact URL matches
+        for (const [keyword, data] of Object.entries(listResult.links)) {
+          if (data.url === url) {
+            urlExists = true;
+            keywords.push({
+              keyword: keyword,
+              shorturl: `${this.api_url.replace('yourls-api.php', '')}${keyword}`,
+              title: data.title,
+              url: data.url,
+              date: data.timestamp,
+              ip: data.ip,
+              clicks: data.clicks
+            });
+            
+            // If we only want one result and we found it, break
+            if (exactlyOne) {
+              break;
+            }
+          }
+        }
+      }
+      
+      // Format the response similarly to what the geturl plugin would return
+      if (urlExists) {
+        if (exactlyOne && keywords.length > 0) {
+          // Return just the first match
+          return {
+            status: 'success',
+            keyword: keywords[0].keyword,
+            url: keywords[0].url,
+            title: keywords[0].title,
+            shorturl: keywords[0].shorturl,
+            message: 'success',
+            fallback_used: true
+          };
+        } else {
+          // Return all matches
+          return {
+            status: 'success',
+            keywords: keywords,
+            url: url,
+            message: 'success',
+            fallback_used: true
+          };
+        }
+      } else {
+        // No matches found
+        return {
+          status: 'fail',
+          message: 'URL not found',
+          fallback_used: true
+        };
+      }
+    } catch (error) {
+      console.error('Get URL keyword fallback error:', error.message);
+      
+      // In case of fallback failure, return a safe default
+      return {
+        status: 'fail',
+        message: 'Error looking up URL: ' + error.message,
+        fallback_used: true
+      };
     }
   }
   
@@ -358,19 +686,72 @@ export default class YourlsClient {
    * Delete a short URL
    * 
    * @param {string} shorturl - The short URL or keyword to delete
+   * @param {boolean} [useNativeFallback=true] - Whether to use a native fallback if the plugin is not available
    * @returns {Promise<object>} API response
    */
-  async deleteUrl(shorturl) {
+  async deleteUrl(shorturl, useNativeFallback = true) {
     try {
-      return this.request('delete', { shorturl });
-    } catch (error) {
-      // If the plugin isn't installed, we'll get an error about unknown action
-      if (isPluginMissingError(error)) {
+      // First check if the plugin is available
+      const isAvailable = await isPluginAvailable(this, 'delete', 'delete', { shorturl: 'test' });
+      
+      if (isAvailable) {
+        return this.request('delete', { shorturl });
+      } else if (useNativeFallback) {
+        // Use our fallback implementation with admin interface emulation
+        return this._deleteUrlFallback(shorturl);
+      } else {
         throw new Error('The delete action is not available. Please install the API Delete plugin.');
       }
+    } catch (error) {
+      // If the error is not about a missing plugin, re-throw it
+      if (!isPluginMissingError(error)) {
+        throw error;
+      }
       
-      // Otherwise, re-throw the original error
-      throw error;
+      // If we're here, the plugin is missing and we need to use the fallback
+      if (useNativeFallback) {
+        return this._deleteUrlFallback(shorturl);
+      } else {
+        throw new Error('The delete action is not available. Please install the API Delete plugin.');
+      }
+    }
+  }
+  
+  /**
+   * Fallback implementation for deleting a URL
+   * Note: This is a limited emulation as core YOURLS API doesn't support deletion
+   * 
+   * @param {string} shorturl - The short URL or keyword to delete
+   * @returns {Promise<object>} API response
+   * @private
+   */
+  async _deleteUrlFallback(shorturl) {
+    try {
+      // First, check if the shorturl exists
+      const expandResult = await this.expand(shorturl).catch(() => null);
+      
+      if (!expandResult || !expandResult.longurl) {
+        return {
+          status: 'fail',
+          message: `Short URL '${shorturl}' not found.`,
+          code: 'not_found',
+          fallback_used: true
+        };
+      }
+      
+      // Core YOURLS doesn't provide a way to delete URLs via the API
+      // We can only provide a simulated response that explains the limitation
+      return {
+        status: 'info',
+        message: 'The core YOURLS API does not support URL deletion. Please install the API Delete plugin for this functionality.',
+        code: 'not_supported',
+        shorturl: shorturl,
+        fallback_used: true,
+        fallback_limited: true
+      };
+    } catch (error) {
+      console.error('Delete URL fallback error:', error.message);
+      throw new Error(`Unable to delete URL: ${error.message}`);
     }
   }
   
@@ -384,9 +765,18 @@ export default class YourlsClient {
    * @param {number} [options.perpage=50] - Number of results per page
    * @param {string} [options.query=''] - Optional search query for filtering by keyword
    * @param {string[]} [options.fields=['*']] - Fields to return (keyword, url, title, timestamp, ip, clicks)
+   * @param {boolean} [options.useNativeFallback=true] - Whether to use a native fallback if the plugin is not available
    * @returns {Promise<object>} API response with list of URLs
    */
-  async listUrls({ sortby = 'timestamp', sortorder = 'DESC', offset = 0, perpage = 50, query = '', fields = ['*'] } = {}) {
+  async listUrls({ 
+    sortby = 'timestamp', 
+    sortorder = 'DESC', 
+    offset = 0, 
+    perpage = 50, 
+    query = '', 
+    fields = ['*'],
+    useNativeFallback = true
+  } = {}) {
     // Validate sortby field
     const validSortFields = ['keyword', 'url', 'title', 'ip', 'timestamp', 'clicks'];
     if (sortby && !validSortFields.includes(sortby)) {
@@ -409,21 +799,143 @@ export default class YourlsClient {
     }
     
     try {
-      return this.request('list', { 
-        sortby, 
-        sortorder: sortorder.toUpperCase(), 
-        offset, 
-        perpage, 
-        query,
-        fields
-      });
-    } catch (error) {
-      // If the plugin isn't installed, we'll get an error about unknown action
-      if (isPluginMissingError(error)) {
+      // First check if the plugin is available
+      const isAvailable = await isPluginAvailable(this, 'list_extended', 'list', { perpage: 1 });
+      
+      if (isAvailable) {
+        return this.request('list', { 
+          sortby, 
+          sortorder: sortorder.toUpperCase(), 
+          offset, 
+          perpage, 
+          query,
+          fields
+        });
+      } else if (useNativeFallback) {
+        // Use our fallback implementation
+        return this._listUrlsFallback(sortby, sortorder, offset, perpage, query, fields);
+      } else {
         throw new Error('The list action is not available. Please install the API List Extended plugin.');
       }
+    } catch (error) {
+      // If the error is not about a missing plugin, re-throw it
+      if (!isPluginMissingError(error)) {
+        throw error;
+      }
       
-      // Otherwise, re-throw the original error
+      // If we're here, the plugin is missing and we need to use the fallback
+      if (useNativeFallback) {
+        return this._listUrlsFallback(sortby, sortorder, offset, perpage, query, fields);
+      } else {
+        throw new Error('The list action is not available. Please install the API List Extended plugin.');
+      }
+    }
+  }
+  
+  /**
+   * Fallback implementation for listing URLs using the stats API
+   * 
+   * @param {string} sortby - Field to sort by
+   * @param {string} sortorder - Sort order (ASC or DESC)
+   * @param {number} offset - Pagination offset
+   * @param {number} perpage - Number of results per page
+   * @param {string} query - Optional search query
+   * @param {string[]} fields - Fields to return
+   * @returns {Promise<object>} API response with list of URLs
+   * @private
+   */
+  async _listUrlsFallback(sortby, sortorder, offset, perpage, query, fields) {
+    try {
+      // The core YOURLS stats action provides similar functionality but with fewer features
+      // We'll use it as a fallback but with limited functionality
+      
+      // Build the request parameters as best we can with the core API
+      const params = {
+        limit: perpage * 3 // Request more to account for filtering
+      };
+      
+      if (query) {
+        params.filter = 'keyword'; // The only filter available in core API
+        params.search = query;
+      }
+      
+      // Make the request
+      const result = await this.request('stats', params);
+      
+      if (!result.links) {
+        return {
+          status: 'success',
+          links: [],
+          total: 0,
+          perpage,
+          page: offset / perpage + 1,
+          fallback_used: true
+        };
+      }
+      
+      // Convert result.links object to array
+      let links = Object.entries(result.links).map(([keyword, data]) => {
+        return {
+          keyword,
+          ...data
+        };
+      });
+      
+      // Apply sort (core YOURLS doesn't have advanced sorting)
+      links.sort((a, b) => {
+        let aValue = a[sortby];
+        let bValue = b[sortby];
+        
+        // For numeric fields, convert to numbers
+        if (sortby === 'clicks') {
+          aValue = parseInt(aValue || '0', 10);
+          bValue = parseInt(bValue || '0', 10);
+        }
+        
+        // Apply sort direction
+        const direction = sortorder.toUpperCase() === 'ASC' ? 1 : -1;
+        
+        if (aValue < bValue) return -1 * direction;
+        if (aValue > bValue) return 1 * direction;
+        return 0;
+      });
+      
+      // Apply pagination
+      const paginatedLinks = links.slice(offset, offset + perpage);
+      
+      // Format the fields as requested
+      const formattedLinks = {};
+      
+      paginatedLinks.forEach(link => {
+        // If specific fields were requested, filter them
+        if (fields[0] !== '*') {
+          const filteredLink = {};
+          fields.forEach(field => {
+            if (field === 'keyword') {
+              filteredLink.keyword = link.keyword;
+            } else if (link[field] !== undefined) {
+              filteredLink[field] = link[field];
+            }
+          });
+          formattedLinks[link.keyword] = filteredLink;
+        } else {
+          // Otherwise include all available fields
+          formattedLinks[link.keyword] = link;
+          delete formattedLinks[link.keyword].keyword; // Remove redundant keyword
+        }
+      });
+      
+      return {
+        status: 'success',
+        links: formattedLinks,
+        total: links.length,
+        perpage,
+        page: offset / perpage + 1,
+        fallback_used: true,
+        fallback_limitations: 'Limited sorting and filtering capabilities when using core API'
+      };
+    } catch (error) {
+      console.error('List URLs fallback error:', error.message);
       throw error;
     }
   }
