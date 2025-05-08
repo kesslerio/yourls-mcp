@@ -20,6 +20,7 @@ env/
 # Configuration files with sensitive information
 config.yaml
 .env
+CLAUDE.md
 
 # YOURLS directory (reference only, not tracked)
 YOURLS/
