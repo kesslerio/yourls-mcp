@@ -1,12 +1,17 @@
 /**
  * URL Expansion tool implementation
+ * 
+ * Uses the standardized MCP response format via createMcpResponse utility:
+ * - Success: {content: [{type: 'text', text: JSON.stringify({status: 'success', ...data})}]}
+ * - Error: {content: [{type: 'text', text: JSON.stringify({status: 'error', ...data})}], isError: true}
  */
+import { createMcpResponse } from '../utils.js';
 
 /**
  * Create a URL expansion tool
  * 
  * @param {object} yourlsClient - YOURLS API client
- * @returns {object} Tool definition
+ * @returns {object} Tool definition with standardized MCP response format
  */
 export default function createExpandUrlTool(yourlsClient) {
   return {
@@ -27,33 +32,21 @@ export default function createExpandUrlTool(yourlsClient) {
         const result = await yourlsClient.expand(shorturl);
         
         if (result.longurl) {
-          return {
-            contentType: 'application/json',
-            content: JSON.stringify({
-              status: 'success',
-              shorturl: result.shorturl || shorturl,
-              longurl: result.longurl,
-              title: result.title || ''
-            })
-          };
+          return createMcpResponse(true, {
+            shorturl: result.shorturl || shorturl,
+            longurl: result.longurl,
+            title: result.title || ''
+          });
         } else {
-          return {
-            contentType: 'application/json',
-            content: JSON.stringify({
-              status: 'error',
-              message: result.message || 'Unknown error',
-              code: result.code || 'unknown'
-            })
-          };
+          return createMcpResponse(false, {
+            message: result.message || 'Unknown error',
+            code: result.code || 'unknown'
+          });
         }
       } catch (error) {
-        return {
-          contentType: 'application/json',
-          content: JSON.stringify({
-            status: 'error',
-            message: error.message
-          })
-        };
+        return createMcpResponse(false, {
+          message: error.message
+        });
       }
     }
   };

@@ -1,13 +1,17 @@
 /**
  * URL Shortening tool implementation
+ * 
+ * Uses the standardized MCP response format via createMcpResponse utility:
+ * - Success: {content: [{type: 'text', text: JSON.stringify({status: 'success', ...data})}]}
+ * - Error: {content: [{type: 'text', text: JSON.stringify({status: 'error', ...data})}], isError: true}
  */
-import { isShortShortError, createShortShortErrorResponse, createApiResponse } from '../utils.js';
+import { isShortShortError, createShortShortErrorResponse, createMcpResponse } from '../utils.js';
 
 /**
  * Create a URL shortening tool
  * 
  * @param {object} yourlsClient - YOURLS API client
- * @returns {object} Tool definition
+ * @returns {object} Tool definition with standardized MCP response format
  */
 export default function createShortenUrlTool(yourlsClient) {
   return {
@@ -36,13 +40,13 @@ export default function createShortenUrlTool(yourlsClient) {
         const result = await yourlsClient.shorten(url, keyword, title);
         
         if (result.shorturl) {
-          return createApiResponse(true, {
+          return createMcpResponse(true, {
             shorturl: result.shorturl,
             url: result.url || url,
             title: result.title || title || ''
           });
         } else {
-          return createApiResponse(false, {
+          return createMcpResponse(false, {
             message: result.message || 'Unknown error',
             code: result.code || 'unknown'
           });
@@ -50,11 +54,11 @@ export default function createShortenUrlTool(yourlsClient) {
       } catch (error) {
         // Check if this is a ShortShort plugin error (prevents shortening of already-shortened URLs)
         if (isShortShortError(error)) {
-          return createApiResponse(false, createShortShortErrorResponse(url, keyword));
+          return createMcpResponse(false, createShortShortErrorResponse(url, keyword));
         }
         
         // Handle all other errors
-        return createApiResponse(false, {
+        return createMcpResponse(false, {
           message: error.message,
           code: error.response?.data?.code || 'unknown_error'
         });

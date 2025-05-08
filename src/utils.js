@@ -235,6 +235,7 @@ export function createShortShortErrorResponse(url, keyword = null) {
 /**
  * Creates a standardized API response object
  * 
+ * @deprecated Since v0.1.0 - Use createMcpResponse() instead for consistent formatting
  * @param {boolean} isSuccess - Whether the response is successful
  * @param {object} data - The response data
  * @returns {object} Standardized API response
@@ -262,9 +263,10 @@ export function createApiResponse(isSuccess, data) {
 /**
  * Creates a standardized MCP tool response object
  * 
+ * @since v0.1.0 - Standardized response format for all MCP tools
  * @param {boolean} isSuccess - Whether the response is successful
  * @param {object} data - The response data
- * @returns {object} Standardized MCP tool response
+ * @returns {object} Standardized MCP tool response with consistent format
  */
 export function createMcpResponse(isSuccess, data) {
   if (isSuccess) {

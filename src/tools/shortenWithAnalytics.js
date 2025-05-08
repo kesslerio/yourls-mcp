@@ -2,7 +2,7 @@
  * Google Analytics URL Shortening tool implementation
  */
 import { z } from 'zod';
-import { validateUtmParameters, sanitizeUtmParameters } from '../utils.js';
+import { validateUtmParameters, sanitizeUtmParameters, createMcpResponse } from '../utils.js';
 
 /**
  * Create a tool for shortening URLs with Google Analytics UTM parameters
@@ -41,37 +41,20 @@ export default function createShortenWithAnalyticsTool(yourlsClient) {
         const result = await yourlsClient.shortenWithAnalytics(url, utmParams, keyword, title);
         
         if (result.shorturl) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  status: 'success',
-                  shorturl: result.shorturl,
-                  url: result.url || url,
-                  title: result.title || title || '',
-                  analytics: result.analytics
-                })
-              }
-            ]
-          };
+          return createMcpResponse(true, {
+            shorturl: result.shorturl,
+            url: result.url || url,
+            title: result.title || title || '',
+            analytics: result.analytics
+          });
         } else {
           throw new Error(result.message || 'Unknown error');
         }
       } catch (error) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({
-                status: 'error',
-                message: error.message,
-                code: error.code || 'unknown_error'
-              })
-            }
-          ],
-          isError: true
-        };
+        return createMcpResponse(false, {
+          message: error.message,
+          code: error.code || 'unknown_error'
+        });
       }
     }
   };

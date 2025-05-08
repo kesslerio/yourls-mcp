@@ -43,10 +43,16 @@ export function createServer() {
   // Create YOURLS client
   const yourlsClient = new YourlsClient(config.yourls);
   
-  // Create the MCP server
+  // Create the MCP server with capability declarations
   const server = new McpServer({
     name: 'yourls-mcp',
     version: '0.1.0',
+  }, {
+    capabilities: {
+      tools: {},
+      resources: {},
+      prompts: {}
+    }
   });
 
   // Create tool instances
@@ -79,19 +85,11 @@ export function createServer() {
         const result = await yourlsClient.shorten(url, keyword, title);
         
         if (result.shorturl) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  status: 'success',
-                  shorturl: result.shorturl,
-                  url: result.url || url,
-                  title: result.title || title || ''
-                })
-              }
-            ]
-          };
+          return createMcpResponse(true, {
+            shorturl: result.shorturl,
+            url: result.url || url,
+            title: result.title || title || ''
+          });
         } else {
           throw new Error(result.message || 'Unknown error');
         }
@@ -101,19 +99,10 @@ export function createServer() {
           return createMcpResponse(false, createShortShortErrorResponse(url, keyword));
         }
         
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({
-                status: 'error',
-                message: error.message,
-                code: error.response?.data?.code || 'unknown_error'
-              })
-            }
-          ],
-          isError: true
-        };
+        return createMcpResponse(false, {
+          message: error.message,
+          code: error.response?.data?.code || 'unknown_error'
+        });
       }
     }
   );
@@ -129,38 +118,21 @@ export function createServer() {
         const result = await yourlsClient.expand(shorturl);
         
         if (result.longurl) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  status: 'success',
-                  shorturl: result.shorturl || shorturl,
-                  longurl: result.longurl,
-                  title: result.title || ''
-                })
-              }
-            ]
-          };
+          return createMcpResponse(true, {
+            shorturl: result.shorturl || shorturl,
+            longurl: result.longurl,
+            title: result.title || ''
+          });
         } else {
           throw new Error(result.message || 'Unknown error');
         }
       } catch (error) {
         // Check if it's a 404 error (short URL not found)
         if (error.response && error.response.status === 404) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  status: 'error',
-                  message: `The short URL or keyword '${shorturl}' was not found in the database.`,
-                  code: 'not_found'
-                })
-              }
-            ],
-            isError: true
-          };
+          return createMcpResponse(false, {
+            message: `The short URL or keyword '${shorturl}' was not found in the database.`,
+            code: 'not_found'
+          });
         }
         
         // For other errors, provide better formatting
@@ -169,19 +141,10 @@ export function createServer() {
           errorMessage = error.response.data.message;
         }
         
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({
-                status: 'error',
-                message: errorMessage,
-                shorturl: shorturl
-              })
-            }
-          ],
-          isError: true
-        };
+        return createMcpResponse(false, {
+          message: errorMessage,
+          shorturl: shorturl
+        });
       }
     }
   );
@@ -304,90 +267,48 @@ export function createServer() {
         
         // Handle the regular success case with a shorturl
         if (result.shorturl) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  status: 'success',
-                  shorturl: result.shorturl,
-                  url: result.url || url,
-                  keyword: keyword,
-                  title: result.title || title || '',
-                  message: result.message || 'Short URL created successfully'
-                })
-              }
-            ]
-          };
+          return createMcpResponse(true, {
+            shorturl: result.shorturl,
+            url: result.url || url,
+            keyword: keyword,
+            title: result.title || title || '',
+            message: result.message || 'Short URL created successfully'
+          });
         } 
         // Handle the case where URL already exists with a different keyword
         else if (result.status === 'success' && result.existingShorturl) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  status: 'success',
-                  message: `URL already exists with the keyword '${result.existingKeyword}' instead of '${keyword}'`,
-                  existingShorturl: result.existingShorturl,
-                  existingKeyword: result.existingKeyword,
-                  requestedKeyword: keyword,
-                  url: url
-                })
-              }
-            ]
-          };
+          return createMcpResponse(true, {
+            message: `URL already exists with the keyword '${result.existingKeyword}' instead of '${keyword}'`,
+            existingShorturl: result.existingShorturl,
+            existingKeyword: result.existingKeyword,
+            requestedKeyword: keyword,
+            url: url
+          });
         }
         // Handle error cases
         else if (result.status === 'fail' && result.code === 'error:keyword') {
           // Handle case where keyword already exists
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  status: 'error',
-                  message: `The keyword '${keyword}' is already in use. Please choose another keyword.`,
-                  code: 'keyword_exists'
-                })
-              }
-            ],
-            isError: true
-          };
+          return createMcpResponse(false, {
+            message: `The keyword '${keyword}' is already in use. Please choose another keyword.`,
+            code: 'keyword_exists'
+          });
         } else {
           throw new Error(result.message || 'Unknown error');
         }
       } catch (error) {
         // Check for specific error messages about keyword conflicts
         if (error.message && error.message.includes('already exists and points to a different URL')) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  status: 'error',
-                  message: error.message,
-                  code: 'keyword_conflict',
-                  url: url,
-                  keyword: keyword
-                })
-              }
-            ],
-            isError: true
-          };
+          return createMcpResponse(false, {
+            message: error.message,
+            code: 'keyword_conflict',
+            url: url,
+            keyword: keyword
+          });
         }
         
         // Check if this is a ShortShort plugin error (prevents shortening of already-shortened URLs)
         if (isShortShortError(error)) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(createShortShortErrorResponse(url, keyword))
-              }
-            ],
-            isError: true
-          };
+          return createMcpResponse(false, createShortShortErrorResponse(url, keyword));
         }
         
         // Provide a more helpful error message for other errors
@@ -398,21 +319,12 @@ export function createServer() {
           errorMessage = error.response.data.message;
         }
         
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({
-                status: 'error',
-                message: errorMessage,
-                code: error.response?.data?.code || 'unknown_error',
-                originalUrl: url,
-                attemptedKeyword: keyword
-              })
-            }
-          ],
-          isError: true
-        };
+        return createMcpResponse(false, {
+          message: errorMessage,
+          code: error.response?.data?.code || 'unknown_error',
+          originalUrl: url,
+          attemptedKeyword: keyword
+        });
       }
     }
   );
@@ -433,6 +345,9 @@ export function createServer() {
     },
     shortenWithAnalyticsTool.execute
   );
+
+  // The McpServer class automatically handles resources/list and prompts/list
+  // with empty responses if we don't explicitly register any resources or prompts
 
   // Create a wrapper to maintain the original API
   return {
