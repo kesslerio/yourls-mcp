@@ -1,0 +1,19 @@
+{
+  "name": "yourls-mcp",
+  "version": "0.1.0",
+  "description": "Model Control Protocol server for YOURLS URL shortening",
+  "main": "yourls-mcp.js",
+  "bin": {
+    "yourls-mcp": "./yourls-mcp.js"
+  },
+  "scripts": {
+    "start": "node yourls-mcp.js"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.0.9",
+    "axios": "^1.6.2",
+    "js-yaml": "^4.1.0"
+  }
+}
