@@ -88,6 +88,19 @@ Total links: 157
 Total clicks: 3,429
 ```
 
+### Creating Custom Short URLs
+
+```
+You: Can you set up a custom URL bysha.pe/web that points to shapescale.com?
+
+Claude: I'll create that custom URL for you.
+
+I've created the custom URL with your specified keyword. The shortened URL is:
+https://bysha.pe/web
+
+This now redirects to: https://shapescale.com
+```
+
 ## Practical Use Cases
 
 YOURLS-MCP is particularly useful for:

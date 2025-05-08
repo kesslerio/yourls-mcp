@@ -102,12 +102,23 @@ Gets global statistics for your YOURLS instance.
 
 **Parameters:** None
 
+### 5. create_custom_url
+
+Creates a custom short URL with a specific keyword.
+
+**Parameters:**
+- `url` (required): The target URL to shorten
+- `keyword` (required): The custom keyword for the short URL (e.g., "web" for bysha.pe/web)
+- `title` (optional): Title for the URL
+
 ## Usage Examples
 
 Once configured, Claude will be able to use the YOURLS tools with prompts like:
 
 - "Shorten this URL for me: https://example.com/very-long-url-that-needs-shortening"
 - "Create a short URL with the keyword 'docs' for https://example.com/documentation"
+- "Set up a custom URL bysha.pe/web that points to shapescale.com"
+- "Create a custom short URL for our documentation using the keyword 'docs'"
 - "Expand this short URL: https://yourdomain.com/abc"
 - "How many clicks does my short URL https://yourdomain.com/abc have?"
 - "Show me the statistics for my YOURLS instance"

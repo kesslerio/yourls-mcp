@@ -191,6 +191,65 @@ export function createServer() {
     }
   );
 
+  // Register create_custom_url tool
+  server.tool('create_custom_url', 
+    'Create a custom short URL with a specific keyword', 
+    {
+      url: z.string().describe('The target URL to shorten'),
+      keyword: z.string().describe('The custom keyword for the short URL (e.g., "web" for bysha.pe/web)'),
+      title: z.string().optional().describe('Optional title for the URL')
+    },
+    async ({ url, keyword, title }) => {
+      try {
+        const result = await yourlsClient.shorten(url, keyword, title);
+        
+        if (result.shorturl) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({
+                  status: 'success',
+                  shorturl: result.shorturl,
+                  url: result.url || url,
+                  keyword: keyword,
+                  title: result.title || title || ''
+                })
+              }
+            ]
+          };
+        } else if (result.status === 'fail' && result.code === 'error:keyword') {
+          // Handle case where keyword already exists
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({
+                  status: 'error',
+                  message: `The keyword '${keyword}' is already in use. Please choose another keyword.`,
+                  code: 'keyword_exists'
+                })
+              }
+            ],
+            isError: true
+          };
+        } else {
+          throw new Error(result.message || 'Unknown error');
+        }
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: error.message
+            }
+          ],
+          isError: true
+        };
+      }
+    }
+  );
+
   // Create a wrapper to maintain the original API
   return {
     listen() {
