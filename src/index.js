@@ -6,6 +6,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { loadConfig, validateConfig } from './config.js';
 import YourlsClient from './api.js';
+import { isShortShortError, createShortShortErrorResponse, createMcpResponse } from './utils.js';
 
 /**
  * Create and configure MCP server for YOURLS
@@ -233,101 +234,48 @@ export function createServer() {
         
         // Handle the regular success case with a shorturl
         if (result.shorturl) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  status: 'success',
-                  shorturl: result.shorturl,
-                  url: result.url || url,
-                  keyword: keyword,
-                  title: result.title || title || '',
-                  message: result.message || 'Short URL created successfully'
-                })
-              }
-            ]
-          };
+          return createMcpResponse(true, {
+            shorturl: result.shorturl,
+            url: result.url || url,
+            keyword: keyword,
+            title: result.title || title || '',
+            message: result.message || 'Short URL created successfully'
+          });
         } 
         // Handle the case where URL already exists with a different keyword
         else if (result.status === 'success' && result.existingShorturl) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  status: 'success',
-                  message: `URL already exists with the keyword '${result.existingKeyword}' instead of '${keyword}'`,
-                  existingShorturl: result.existingShorturl,
-                  existingKeyword: result.existingKeyword,
-                  requestedKeyword: keyword,
-                  url: url
-                })
-              }
-            ]
-          };
+          return createMcpResponse(true, {
+            message: `URL already exists with the keyword '${result.existingKeyword}' instead of '${keyword}'`,
+            existingShorturl: result.existingShorturl,
+            existingKeyword: result.existingKeyword,
+            requestedKeyword: keyword,
+            url: url
+          });
         }
         // Handle error cases
         else if (result.status === 'fail' && result.code === 'error:keyword') {
           // Handle case where keyword already exists
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  status: 'error',
-                  message: `The keyword '${keyword}' is already in use. Please choose another keyword.`,
-                  code: 'keyword_exists'
-                })
-              }
-            ],
-            isError: true
-          };
+          return createMcpResponse(false, {
+            message: `The keyword '${keyword}' is already in use. Please choose another keyword.`,
+            code: 'keyword_exists'
+          });
         } else {
           throw new Error(result.message || 'Unknown error');
         }
       } catch (error) {
         // Check for specific error messages about keyword conflicts
         if (error.message && error.message.includes('already exists and points to a different URL')) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  status: 'error',
-                  message: error.message,
-                  code: 'keyword_conflict',
-                  url: url,
-                  keyword: keyword
-                })
-              }
-            ],
-            isError: true
-          };
+          return createMcpResponse(false, {
+            message: error.message,
+            code: 'keyword_conflict',
+            url: url,
+            keyword: keyword
+          });
         }
         
-        // Check if this is a ShortShort plugin error (it blocks shortening of already-shortened URLs)
-        if (error.response && 
-            error.response.data && 
-            error.response.data.code === 'error:bypass' && 
-            error.response.data.message && 
-            error.response.data.message.includes('shortshort: URL is a shortened URL')) {
-          
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  status: 'error',
-                  code: 'error:already_shortened',
-                  message: 'This URL appears to be a shortened URL already. The ShortShort plugin prevents shortening of already shortened URLs to avoid redirect chains.',
-                  originalUrl: url,
-                  attemptedKeyword: keyword
-                })
-              }
-            ],
-            isError: true
-          };
+        // Check if this is a ShortShort plugin error (prevents shortening of already-shortened URLs)
+        if (isShortShortError(error)) {
+          return createMcpResponse(false, createShortShortErrorResponse(url, keyword));
         }
         
         // Provide a more helpful error message for other errors
@@ -338,21 +286,12 @@ export function createServer() {
           errorMessage = error.response.data.message;
         }
         
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({
-                status: 'error',
-                message: errorMessage,
-                code: error.response?.data?.code || 'unknown_error',
-                originalUrl: url,
-                attemptedKeyword: keyword
-              })
-            }
-          ],
-          isError: true
-        };
+        return createMcpResponse(false, {
+          message: errorMessage,
+          code: error.response?.data?.code || 'unknown_error',
+          originalUrl: url,
+          attemptedKeyword: keyword
+        });
       }
     }
   );
