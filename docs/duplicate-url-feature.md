@@ -1,5 +1,7 @@
 # Duplicate URL Handling Feature
 
+> **Version:** 1.2.0 | **Last Updated:** May 2025 | **Compatibility:** YOURLS 1.7+, 1.8+, 1.9.2+
+
 One of the unique features of YOURLS-MCP is its ability to create multiple short URLs (with different keywords) for the same destination URL. This document provides detailed information about this feature.
 
 ## The Challenge
@@ -32,16 +34,41 @@ We've developed a custom plugin that:
 
 **Technical Details:**
 ```php
+/**
+ * Plugin: Force Allow Duplicates
+ * 
+ * This plugin allows creating multiple short URLs pointing to the same destination URL
+ * by bypassing YOURLS' built-in URL uniqueness constraint.
+ */
+
 // Key filter hook that allows duplicate URLs to be created
+// Parameters: 10 = priority, 2 = number of arguments (return value and URL)
 yourls_add_filter('url_exists', 'fad_url_exists', 10, 2);
 
+/**
+ * This function intercepts YOURLS' URL uniqueness check
+ * 
+ * When YOURLS tries to check if a URL already exists in the database,
+ * this function can override the result when the 'force' parameter is present.
+ * 
+ * @param mixed $return - The original return value (true if URL exists, false otherwise)
+ * @param string $url - The URL being checked
+ * @return mixed - Returns false when force=1, otherwise returns the original value
+ */
 function fad_url_exists($return, $url) {
     // If 'force' parameter is set, bypass the uniqueness check
+    // This effectively tells YOURLS that the URL doesn't exist even if it does
     if (isset($_REQUEST['force']) && $_REQUEST['force'] == '1') {
         return false; // Tell YOURLS the URL doesn't exist, even if it does
     }
     return $return; // Otherwise, use standard YOURLS behavior
 }
+
+/**
+ * In the full plugin implementation, there's also a shunt hook that bypasses
+ * the standard add_new_link function to handle edge cases and ensure proper
+ * database operations while maintaining analytics and statistics.
+ */
 ```
 
 ### 2. URL Modification Approach (Fallback)

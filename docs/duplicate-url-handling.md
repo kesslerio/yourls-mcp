@@ -1,5 +1,7 @@
 # Duplicate URL Handling in YOURLS-MCP
 
+> **Version:** 1.2.0 | **Last Updated:** May 2025 | **Compatibility:** YOURLS 1.7+, 1.8+, 1.9.2+
+
 This document provides a technical deep dive into how YOURLS-MCP handles the creation of multiple short URLs (with different keywords) for the same destination URL.
 
 ## The Challenge
@@ -36,30 +38,50 @@ yourls_add_filter('shunt_add_new_link', 'fad_shunt_add_new_link', 10, 4);
 
 **Database Operations:**
 ```php
-// Direct database insertion code
+/**
+ * Custom implementation to add a new short URL link
+ * 
+ * This function is called by the shunt_add_new_link hook when force=1 is present,
+ * bypassing YOURLS' standard link creation flow to allow duplicate destination URLs.
+ * It performs direct database operations while maintaining all security precautions.
+ * 
+ * @param string $url - The long URL to shorten
+ * @param string $keyword - The desired keyword for the short URL
+ * @param string $title - Optional title for the URL
+ * @return int|bool - Number of affected rows or false on failure
+ */
 function fad_add_new_link($url, $keyword, $title = '') {
-    global $ydb;
+    global $ydb; // YOURLS database object
     
-    // Sanitize inputs (important security step)
-    $url = yourls_sanitize_url($url);
-    $keyword = yourls_sanitize_keyword($keyword);
-    $title = yourls_sanitize_title($title);
+    // Sanitize inputs (critical security step to prevent SQL injection)
+    // These functions come from YOURLS core and handle all necessary validation
+    $url = yourls_sanitize_url($url);     // Ensures valid URL format & sanitizes
+    $keyword = yourls_sanitize_keyword($keyword); // Removes invalid chars for keywords
+    $title = yourls_sanitize_title($title);       // Sanitizes user-provided title
     
-    // Prepare the insert statement
+    // Prepare the insert statement with all required fields
+    // YOURLS_DB_TABLE_URL is defined in YOURLS config as the shorts table
     $table = YOURLS_DB_TABLE_URL;
+    
+    // Define values for all required columns to ensure database integrity
     $binds = array(
-        'keyword' => $keyword,
-        'url' => $url,
-        'title' => $title,
-        'timestamp' => date('Y-m-d H:i:s'),
-        'ip' => yourls_get_IP(),
-        'clicks' => 0
+        'keyword' => $keyword,   // The custom short URL keyword
+        'url' => $url,           // The destination URL (can be duplicate)
+        'title' => $title,       // Optional title for the URL
+        'timestamp' => date('Y-m-d H:i:s'), // Current time in MySQL format
+        'ip' => yourls_get_IP(), // User's IP address for tracking/stats
+        'clicks' => 0            // Initialize click counter
     );
     
-    // Execute the insert with proper prepared statements
-    $insert = $ydb->fetchAffected("INSERT INTO `$table` (`keyword`, `url`, `title`, `timestamp`, `ip`, `clicks`) VALUES (:keyword, :url, :title, :timestamp, :ip, :clicks)", $binds);
+    // Execute the insert with proper prepared statements for SQL injection protection
+    // This bypasses the unique constraints that would normally prevent duplicate URLs
+    $insert = $ydb->fetchAffected(
+        "INSERT INTO `$table` (`keyword`, `url`, `title`, `timestamp`, `ip`, `clicks`) 
+         VALUES (:keyword, :url, :title, :timestamp, :ip, :clicks)", 
+        $binds
+    );
     
-    // Return the result
+    // Return the result (number of affected rows, should be 1 on success)
     return $insert;
 }
 ```

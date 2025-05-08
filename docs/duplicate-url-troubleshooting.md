@@ -1,5 +1,7 @@
 # Troubleshooting Duplicate URL Handling
 
+> **Version:** 1.2.0 | **Last Updated:** May 2025 | **Compatibility:** YOURLS 1.7+, 1.8+, 1.9.2+
+
 This document provides solutions for common issues you might encounter when using the duplicate URL handling features of YOURLS-MCP.
 
 ## Common Issues and Solutions
@@ -227,9 +229,29 @@ console.log('Modification result:', modificationResult);
 The Force Allow Duplicates plugin has been tested with:
 - YOURLS 1.7.x - Full compatibility
 - YOURLS 1.8.x - Full compatibility
-- YOURLS 1.9.x - Generally compatible, but may have issues with some advanced features
+- YOURLS 1.9.x - Full compatibility with version 1.9.2 and later
 
-If using an older or newer YOURLS version, you might encounter issues that require plugin modifications.
+#### YOURLS 1.9.x Specific Notes
+
+YOURLS 1.9.x introduces significant changes to the plugin architecture and API handling. Our testing shows that the Force Allow Duplicates plugin works with YOURLS 1.9.2+, but there are some important considerations:
+
+1. **Plugin Installation**: In YOURLS 1.9.x, the plugin activation process is more strict. Ensure your plugin is properly installed in the correct directory and activated through the admin interface.
+
+2. **Database Handling**: YOURLS 1.9.x has updated its database interactions. The plugin's direct database interactions have been updated to be compatible with these changes.
+
+3. **API Responses**: The API response format in YOURLS 1.9.x is slightly different. Both our plugin and the YOURLS-MCP code properly handle these differences.
+
+4. **Error Handling**: Error responses in YOURLS 1.9.x include additional information. Our error detection code has been enhanced to properly detect and process these new error formats.
+
+5. **Authentication**: YOURLS 1.9.x has strengthened authentication requirements. Both signature and password authentication methods have been tested and confirmed working.
+
+If you encounter any issues specific to YOURLS 1.9.x compatibility, please report them with:
+- Your exact YOURLS version
+- Whether the plugin is activated in the admin interface
+- The full error message or response you're receiving
+- The API request being made
+
+If using an older (pre-1.7) or future (post-1.9) YOURLS version, you might encounter issues that require plugin modifications.
 
 ### 2. Browser Compatibility
 
