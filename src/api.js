@@ -91,6 +91,17 @@ export default class YourlsClient {
       Object.assign(requestParams, this._getSignatureAuth());
     }
     
+    // Debug output for request
+    if (process.env.YOURLS_DEBUG === 'true') {
+      console.log(`[DEBUG] API Request to ${this.api_url}`);
+      console.log(`[DEBUG] Action: ${action}`);
+      // Don't log sensitive auth details
+      const debugParams = {...requestParams};
+      if (debugParams.password) debugParams.password = '********';
+      if (debugParams.signature) debugParams.signature = '********';
+      console.log(`[DEBUG] Params: ${JSON.stringify(debugParams)}`);
+    }
+    
     try {
       const response = await axios.post(this.api_url, new URLSearchParams(requestParams), {
         headers: {
@@ -98,11 +109,26 @@ export default class YourlsClient {
         }
       });
       
+      // Debug output for response
+      if (process.env.YOURLS_DEBUG === 'true') {
+        console.log(`[DEBUG] API Response: ${JSON.stringify(response.data)}`);
+      }
+      
       return response.data;
     } catch (error) {
       console.error(`YOURLS API Error: ${error.message}`);
       if (error.response) {
         console.error(`Response data: ${JSON.stringify(error.response.data)}`);
+        
+        // Additional debug for errors
+        if (process.env.YOURLS_DEBUG === 'true') {
+          if (error.response.status) {
+            console.error(`Response status: ${error.response.status}`);
+          }
+          if (error.response.headers) {
+            console.error(`Response headers: ${JSON.stringify(error.response.headers)}`);
+          }
+        }
       }
       throw error;
     }
@@ -166,18 +192,59 @@ export default class YourlsClient {
               shortenError.response.data.url) {
             
             // URL already exists with a different keyword
-            // YOURLS doesn't support multiple keywords for same URL via API directly
-            // So we'll return a special response to handle in the UI
-            return {
-              status: 'success',
-              message: 'URL already exists with different keyword',
-              existingUrl: shortenError.response.data.url,
-              existingKeyword: shortenError.response.data.url.keyword,
-              existingShorturl: shortenError.response.data.shorturl,
-              requestedKeyword: keyword,
-              url: url,
-              title: title || shortenError.response.data.title
-            };
+            // If the "Allow Existing URLs" plugin is installed, we can try a direct API call
+            // that bypasses the duplicate URL check
+            try {
+              console.log('[DEBUG] Attempting Allow Existing URLs plugin approach...');
+              // Make a direct API call with the action parameter set to 'shorturl'
+              // This should work with the "Allow Existing URLs" plugin
+              const directParams = {
+                url: url,
+                keyword: keyword,
+                // Try several possible parameters that the plugin might use
+                allow_duplicates: '1',         // Possible parameter name
+                allow_existing: '1',           // Possible parameter name
+                force: '1',                    // Possible parameter name
+                allow_existing_url: '1',       // Possible parameter name
+                allow_duplicate_longurls: '1'  // Possible parameter name
+              };
+              if (title) directParams.title = title;
+              
+              console.log('[DEBUG] Direct API call params:', JSON.stringify(directParams));
+              const directResult = await this.request('shorturl', directParams);
+              console.log('[DEBUG] Direct API call result:', JSON.stringify(directResult));
+              
+              // If we get here, the plugin is working and allowed the duplicate URL
+              if (directResult.status === 'success' || directResult.shorturl) {
+                console.log('[DEBUG] Allow Existing URLs plugin success!');
+                return directResult;
+              }
+              
+              console.log('[DEBUG] Allow Existing URLs plugin did not succeed, falling back...');
+              // If the direct call didn't work, fall back to the original behavior
+              return {
+                status: 'success',
+                message: 'URL already exists with different keyword',
+                existingUrl: shortenError.response.data.url,
+                existingKeyword: shortenError.response.data.url.keyword,
+                existingShorturl: shortenError.response.data.shorturl,
+                requestedKeyword: keyword,
+                url: url,
+                title: title || shortenError.response.data.title
+              };
+            } catch (directError) {
+              // If the direct call fails, fall back to the original behavior
+              return {
+                status: 'success',
+                message: 'URL already exists with different keyword',
+                existingUrl: shortenError.response.data.url,
+                existingKeyword: shortenError.response.data.url.keyword,
+                existingShorturl: shortenError.response.data.shorturl,
+                requestedKeyword: keyword,
+                url: url,
+                title: title || shortenError.response.data.title
+              };
+            }
           }
           
           // For other shortening errors, throw them
