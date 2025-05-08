@@ -208,4 +208,38 @@ export default class YourlsClient {
   async dbStats() {
     return this.request('db-stats', {});
   }
+  
+  /**
+   * Get detailed analytics for a short URL within a date range
+   * 
+   * @param {string} shorturl - Short URL or keyword
+   * @param {string} date - Start date in YYYY-MM-DD format
+   * @param {string} [dateEnd] - End date in YYYY-MM-DD format (defaults to start date if not provided)
+   * @returns {Promise<object>} API response with click statistics
+   */
+  async shortUrlAnalytics(shorturl, date, dateEnd = null) {
+    const params = { 
+      shorturl, 
+      date 
+    };
+    
+    if (dateEnd) {
+      params.date_end = dateEnd;
+    }
+    
+    try {
+      return this.request('shorturl_analytics', params);
+    } catch (error) {
+      // If the plugin isn't installed, we'll get an error about unknown action
+      if (error.response && 
+          error.response.data && 
+          (error.response.data.message === 'Unknown or missing action' ||
+           error.response.data.message?.includes('Unknown action'))) {
+        throw new Error('The shorturl_analytics action is not available. Please install the API ShortURL Analytics plugin.');
+      }
+      
+      // Otherwise, re-throw the original error
+      throw error;
+    }
+  }
 }

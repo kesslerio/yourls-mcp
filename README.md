@@ -111,6 +111,15 @@ Creates a custom short URL with a specific keyword.
 - `keyword` (required): The custom keyword for the short URL (e.g., "web" for bysha.pe/web)
 - `title` (optional): Title for the URL
 
+### 6. url_analytics
+
+Gets detailed click analytics for a short URL within a date range.
+
+**Parameters:**
+- `shorturl` (required): The short URL or keyword to get analytics for
+- `date` (required): Start date for analytics in YYYY-MM-DD format
+- `date_end` (optional): End date for analytics in YYYY-MM-DD format (defaults to start date if not provided)
+
 ## Usage Examples
 
 Once configured, Claude will be able to use the YOURLS tools with prompts like:
@@ -122,6 +131,9 @@ Once configured, Claude will be able to use the YOURLS tools with prompts like:
 - "Expand this short URL: https://yourdomain.com/abc"
 - "How many clicks does my short URL https://yourdomain.com/abc have?"
 - "Show me the statistics for my YOURLS instance"
+- "Give me detailed analytics for shorturl 'abc' for January 2025"
+- "Show me the click statistics for bysha.pe/abc from 2025-01-01 to 2025-01-31"
+- "What was the daily traffic for my shortURL 'web' last month?"
 
 ## Development
 
