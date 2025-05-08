@@ -10,7 +10,8 @@ import {
   isPluginAvailable,
   validateUrl, 
   validateUtmParameters, 
-  sanitizeUtmParameters 
+  sanitizeUtmParameters,
+  createFallbackInfo
 } from './utils.js';
 
 /**
@@ -294,10 +295,13 @@ export default class YourlsClient {
    */
   async _contractUrlFallback(url) {
     try {
-      // We can try to use the stats action with a small results limit
+      // Safety limit to prevent performance issues
+      const MAX_RESULTS = 1000;
+      
+      // We can try to use the stats action with a limited results count
       // and filter for the URL we're looking for
       const listResult = await this.request('stats', { 
-        limit: 1000, 
+        limit: MAX_RESULTS, 
         filter: 'url',
         search: encodeURIComponent(url) 
       });
@@ -327,7 +331,8 @@ export default class YourlsClient {
       return {
         message: 'success',
         url_exists: urlExists,
-        links: links
+        links: links,
+        ...createFallbackInfo('Uses stats API, may be slower for large databases', false, 'API Contract')
       };
     } catch (error) {
       console.error('Contract URL fallback error:', error.message);
@@ -337,7 +342,7 @@ export default class YourlsClient {
         message: 'success',
         url_exists: false,
         links: [],
-        fallback_used: true
+        ...createFallbackInfo('Unable to search database completely', true, 'API Contract')
       };
     }
   }
@@ -406,6 +411,9 @@ export default class YourlsClient {
         throw new Error(`Short URL '${shorturl}' not found.`);
       }
       
+      // Safety check for URL format
+      validateUrl(url);
+      
       // Try to delete the existing shorturl
       // This is tricky as core YOURLS doesn't have a delete API
       // We'll try to use the "add new" action with the same keyword to overwrite
@@ -427,7 +435,7 @@ export default class YourlsClient {
         shorturl: shortenResult.shorturl || `${this.api_url.replace('yourls-api.php', '')}${shorturl}`,
         url: url,
         title: title === 'keep' ? (currentDetails.title || '') : (title || ''),
-        fallback_used: true
+        ...createFallbackInfo('Some versions of YOURLS might not allow URL updates without the plugin', false, 'API Edit URL')
       };
     } catch (error) {
       console.error('Update URL fallback error:', error.message);
@@ -511,6 +519,9 @@ export default class YourlsClient {
       // Use the provided URL or the one from the current short URL
       const targetUrl = url || currentDetails.longurl;
       
+      // Safety check for URL format
+      validateUrl(targetUrl);
+      
       // Determine the title
       let targetTitle = '';
       if (title === 'keep') {
@@ -534,18 +545,19 @@ export default class YourlsClient {
         throw new Error(`Failed to create new keyword: ${shortenResult.message || 'Unknown error'}`);
       }
       
-      // Now try to delete the old shorturl - but this likely won't work with core YOURLS
-      // We'll just return success without actually deleting the old one
+      // Limitation: We can't delete the old shorturl without the Delete plugin
+      const limitations = 'Creates new keyword but cannot delete old one (requires API Delete plugin)';
+      
       return {
         status: 'success',
         statusCode: 200,
-        message: 'Keyword changed (Note: The old keyword still exists, as deletion requires the API Delete plugin)',
+        message: `Keyword changed (Note: The old keyword '${oldshorturl}' still exists)`,
         oldshorturl: oldshorturl,
         newshorturl: newshorturl,
         shorturl: shortenResult.shorturl,
         url: targetUrl,
         title: targetTitle,
-        fallback_used: true
+        ...createFallbackInfo(limitations, true, 'API Edit URL and API Delete')
       };
     } catch (error) {
       console.error('Change keyword fallback error:', error.message);
@@ -605,9 +617,12 @@ export default class YourlsClient {
    */
   async _getUrlKeywordFallback(url, exactlyOne) {
     try {
+      // Safety limit to prevent performance issues
+      const MAX_RESULTS = 1000;
+      
       // We can try to use the stats action with a filter
       const listResult = await this.request('stats', { 
-        limit: 1000, // Get a reasonably large sample
+        limit: MAX_RESULTS,
         filter: 'url',
         search: encodeURIComponent(url) 
       });
@@ -650,7 +665,7 @@ export default class YourlsClient {
             title: keywords[0].title,
             shorturl: keywords[0].shorturl,
             message: 'success',
-            fallback_used: true
+            ...createFallbackInfo('Search limited to latest URLs', false, 'API Edit URL')
           };
         } else {
           // Return all matches
@@ -659,7 +674,7 @@ export default class YourlsClient {
             keywords: keywords,
             url: url,
             message: 'success',
-            fallback_used: true
+            ...createFallbackInfo('Search limited to latest URLs', false, 'API Edit URL')
           };
         }
       } else {
@@ -667,7 +682,7 @@ export default class YourlsClient {
         return {
           status: 'fail',
           message: 'URL not found',
-          fallback_used: true
+          ...createFallbackInfo('Search limited to latest URLs', false, 'API Edit URL')
         };
       }
     } catch (error) {
@@ -677,7 +692,7 @@ export default class YourlsClient {
       return {
         status: 'fail',
         message: 'Error looking up URL: ' + error.message,
-        fallback_used: true
+        ...createFallbackInfo('Error during fallback search', true, 'API Edit URL')
       };
     }
   }
@@ -735,7 +750,7 @@ export default class YourlsClient {
           status: 'fail',
           message: `Short URL '${shorturl}' not found.`,
           code: 'not_found',
-          fallback_used: true
+          ...createFallbackInfo()
         };
       }
       
@@ -746,8 +761,7 @@ export default class YourlsClient {
         message: 'The core YOURLS API does not support URL deletion. Please install the API Delete plugin for this functionality.',
         code: 'not_supported',
         shorturl: shorturl,
-        fallback_used: true,
-        fallback_limited: true
+        ...createFallbackInfo('Core YOURLS API does not support URL deletion', true, 'API Delete')
       };
     } catch (error) {
       console.error('Delete URL fallback error:', error.message);
@@ -833,6 +847,120 @@ export default class YourlsClient {
   }
   
   /**
+   * Fetch stats data from YOURLS for the list fallback
+   * 
+   * @param {number} requestLimit - Number of results to request
+   * @param {string} [query] - Optional search query
+   * @returns {Promise<object>} Stats data from YOURLS API
+   * @private
+   */
+  async _fetchStatsData(requestLimit, query = null) {
+    // Safety limit to prevent performance issues
+    const MAX_RESULTS = 1000;
+    const limit = Math.min(requestLimit, MAX_RESULTS);
+    
+    // Build the request parameters
+    const params = { limit };
+    
+    if (query) {
+      params.filter = 'keyword'; // The only filter available in core API
+      params.search = query;
+    }
+    
+    // Make the request and return the result
+    return this.request('stats', params);
+  }
+  
+  /**
+   * Convert YOURLS stats data to a sortable array
+   * 
+   * @param {object} statsData - Stats data from YOURLS API
+   * @returns {Array} Array of link objects with keyword property
+   * @private
+   */
+  _convertStatsToArray(statsData) {
+    if (!statsData.links) {
+      return [];
+    }
+    
+    // Convert result.links object to array
+    return Object.entries(statsData.links).map(([keyword, data]) => {
+      return {
+        keyword,
+        ...data
+      };
+    });
+  }
+  
+  /**
+   * Sort and paginate links array based on parameters
+   * 
+   * @param {Array} links - Array of link objects
+   * @param {string} sortby - Field to sort by
+   * @param {string} sortorder - Sort order (ASC or DESC)
+   * @param {number} offset - Pagination offset
+   * @param {number} perpage - Number of results per page
+   * @returns {Array} Sorted and paginated array of link objects
+   * @private
+   */
+  _sortAndPaginateLinks(links, sortby, sortorder, offset, perpage) {
+    // Apply sort (core YOURLS doesn't have advanced sorting)
+    links.sort((a, b) => {
+      let aValue = a[sortby];
+      let bValue = b[sortby];
+      
+      // For numeric fields, convert to numbers
+      if (sortby === 'clicks') {
+        aValue = parseInt(aValue || '0', 10);
+        bValue = parseInt(bValue || '0', 10);
+      }
+      
+      // Apply sort direction
+      const direction = sortorder.toUpperCase() === 'ASC' ? 1 : -1;
+      
+      if (aValue < bValue) return -1 * direction;
+      if (aValue > bValue) return 1 * direction;
+      return 0;
+    });
+    
+    // Apply pagination and return
+    return links.slice(offset, offset + perpage);
+  }
+  
+  /**
+   * Format links according to requested fields
+   * 
+   * @param {Array} links - Array of link objects
+   * @param {Array} fields - Fields to include
+   * @returns {object} Formatted links object
+   * @private
+   */
+  _formatLinksWithFields(links, fields) {
+    const formattedLinks = {};
+    
+    links.forEach(link => {
+      // If specific fields were requested, filter them
+      if (fields[0] !== '*') {
+        const filteredLink = {};
+        fields.forEach(field => {
+          if (field === 'keyword') {
+            filteredLink.keyword = link.keyword;
+          } else if (link[field] !== undefined) {
+            filteredLink[field] = link[field];
+          }
+        });
+        formattedLinks[link.keyword] = filteredLink;
+      } else {
+        // Otherwise include all available fields
+        formattedLinks[link.keyword] = link;
+        delete formattedLinks[link.keyword].keyword; // Remove redundant keyword
+      }
+    });
+    
+    return formattedLinks;
+  }
+  
+  /**
    * Fallback implementation for listing URLs using the stats API
    * 
    * @param {string} sortby - Field to sort by
@@ -849,90 +977,34 @@ export default class YourlsClient {
       // The core YOURLS stats action provides similar functionality but with fewer features
       // We'll use it as a fallback but with limited functionality
       
-      // Build the request parameters as best we can with the core API
-      const params = {
-        limit: perpage * 3 // Request more to account for filtering
-      };
+      // Fetch stats data
+      const statsData = await this._fetchStatsData(perpage * 3, query);
       
-      if (query) {
-        params.filter = 'keyword'; // The only filter available in core API
-        params.search = query;
-      }
-      
-      // Make the request
-      const result = await this.request('stats', params);
-      
-      if (!result.links) {
+      // Check for empty response
+      if (!statsData.links) {
         return {
           status: 'success',
-          links: [],
+          links: {},
           total: 0,
           perpage,
           page: offset / perpage + 1,
-          fallback_used: true
+          ...createFallbackInfo()
         };
       }
       
-      // Convert result.links object to array
-      let links = Object.entries(result.links).map(([keyword, data]) => {
-        return {
-          keyword,
-          ...data
-        };
-      });
+      // Process the data
+      const linksArray = this._convertStatsToArray(statsData);
+      const paginatedLinks = this._sortAndPaginateLinks(linksArray, sortby, sortorder, offset, perpage);
+      const formattedLinks = this._formatLinksWithFields(paginatedLinks, fields);
       
-      // Apply sort (core YOURLS doesn't have advanced sorting)
-      links.sort((a, b) => {
-        let aValue = a[sortby];
-        let bValue = b[sortby];
-        
-        // For numeric fields, convert to numbers
-        if (sortby === 'clicks') {
-          aValue = parseInt(aValue || '0', 10);
-          bValue = parseInt(bValue || '0', 10);
-        }
-        
-        // Apply sort direction
-        const direction = sortorder.toUpperCase() === 'ASC' ? 1 : -1;
-        
-        if (aValue < bValue) return -1 * direction;
-        if (aValue > bValue) return 1 * direction;
-        return 0;
-      });
-      
-      // Apply pagination
-      const paginatedLinks = links.slice(offset, offset + perpage);
-      
-      // Format the fields as requested
-      const formattedLinks = {};
-      
-      paginatedLinks.forEach(link => {
-        // If specific fields were requested, filter them
-        if (fields[0] !== '*') {
-          const filteredLink = {};
-          fields.forEach(field => {
-            if (field === 'keyword') {
-              filteredLink.keyword = link.keyword;
-            } else if (link[field] !== undefined) {
-              filteredLink[field] = link[field];
-            }
-          });
-          formattedLinks[link.keyword] = filteredLink;
-        } else {
-          // Otherwise include all available fields
-          formattedLinks[link.keyword] = link;
-          delete formattedLinks[link.keyword].keyword; // Remove redundant keyword
-        }
-      });
-      
+      // Construct the response
       return {
         status: 'success',
         links: formattedLinks,
-        total: links.length,
+        total: linksArray.length,
         perpage,
         page: offset / perpage + 1,
-        fallback_used: true,
-        fallback_limitations: 'Limited sorting and filtering capabilities when using core API'
+        ...createFallbackInfo('Limited sorting and filtering capabilities when using core API')
       };
     } catch (error) {
       console.error('List URLs fallback error:', error.message);

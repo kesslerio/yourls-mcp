@@ -12,6 +12,10 @@ const pluginAvailability = {
   qrcode: null,
 };
 
+// Queue for plugin availability checks to prevent concurrent checks for the same plugin
+const pluginCheckQueue = {};
+let isProcessingQueue = false;
+
 /**
  * Checks if an error is from a missing plugin action
  * 
@@ -24,6 +28,108 @@ export function isPluginMissingError(error) {
     (error.response.data.message === 'Unknown or missing action' ||
      error.response.data.message?.includes('Unknown action') ||
      error.response.data.message?.includes('Unknown method'));
+}
+
+/**
+ * Queue a plugin availability check to prevent concurrent checks for the same plugin
+ * 
+ * @param {object} yourlsClient - The YOURLS API client instance
+ * @param {string} pluginKey - Which plugin to check for
+ * @param {string} testAction - The API action to test
+ * @param {object} [testParams={}] - Optional parameters for the test request
+ * @returns {Promise<boolean>} Whether the plugin is available
+ */
+async function queuePluginCheck(yourlsClient, pluginKey, testAction, testParams) {
+  // Create a promise that will be resolved when the check is complete
+  return new Promise((resolve) => {
+    // Add the check to the queue
+    if (!pluginCheckQueue[pluginKey]) {
+      pluginCheckQueue[pluginKey] = [];
+    }
+    
+    pluginCheckQueue[pluginKey].push({ resolve, yourlsClient, testAction, testParams });
+    
+    // Start processing the queue if it's not already being processed
+    if (!isProcessingQueue) {
+      processPluginCheckQueue();
+    }
+  });
+}
+
+/**
+ * Process the plugin check queue
+ */
+async function processPluginCheckQueue() {
+  isProcessingQueue = true;
+  
+  // Find the next plugin check to perform
+  let nextCheck = null;
+  let pluginKey = null;
+  
+  for (const key in pluginCheckQueue) {
+    if (pluginCheckQueue[key] && pluginCheckQueue[key].length > 0) {
+      nextCheck = pluginCheckQueue[key][0];
+      pluginKey = key;
+      break;
+    }
+  }
+  
+  if (nextCheck) {
+    // Perform the check
+    try {
+      const { yourlsClient, testAction, testParams } = nextCheck;
+      const isAvailable = await checkPluginAvailability(yourlsClient, testAction, testParams);
+      
+      // Update the cache
+      pluginAvailability[pluginKey] = isAvailable;
+      
+      // Resolve all promises for this plugin with the same result
+      pluginCheckQueue[pluginKey].forEach(check => check.resolve(isAvailable));
+      
+      // Clear the queue for this plugin
+      pluginCheckQueue[pluginKey] = [];
+    } catch (error) {
+      // In case of error, assume the plugin is available (fail safe)
+      pluginAvailability[pluginKey] = true;
+      
+      // Resolve all promises for this plugin
+      pluginCheckQueue[pluginKey].forEach(check => check.resolve(true));
+      
+      // Clear the queue for this plugin
+      pluginCheckQueue[pluginKey] = [];
+    }
+    
+    // Continue processing the queue
+    processPluginCheckQueue();
+  } else {
+    // No more checks to perform
+    isProcessingQueue = false;
+  }
+}
+
+/**
+ * Perform the actual check for plugin availability
+ * 
+ * @param {object} yourlsClient - The YOURLS API client instance
+ * @param {string} testAction - The API action to test
+ * @param {object} testParams - Parameters for the test request
+ * @returns {Promise<boolean>} Whether the plugin is available
+ * @private
+ */
+async function checkPluginAvailability(yourlsClient, testAction, testParams) {
+  try {
+    // Make a test request to see if the plugin action is available
+    await yourlsClient.request(testAction, testParams);
+    return true;
+  } catch (error) {
+    // If we get an error about unknown action, the plugin isn't available
+    if (isPluginMissingError(error)) {
+      return false;
+    }
+    
+    // Other errors indicate the plugin is available but there was another issue
+    return true;
+  }
 }
 
 /**
@@ -41,22 +147,8 @@ export async function isPluginAvailable(yourlsClient, pluginKey, testAction, tes
     return pluginAvailability[pluginKey];
   }
   
-  try {
-    // Make a test request to see if the plugin action is available
-    await yourlsClient.request(testAction, testParams);
-    pluginAvailability[pluginKey] = true;
-    return true;
-  } catch (error) {
-    // If we get an error about unknown action, the plugin isn't available
-    if (isPluginMissingError(error)) {
-      pluginAvailability[pluginKey] = false;
-      return false;
-    }
-    
-    // Other errors indicate the plugin is available but there was another issue
-    pluginAvailability[pluginKey] = true;
-    return true;
-  }
+  // Queue the check to prevent concurrent checks for the same plugin
+  return queuePluginCheck(yourlsClient, pluginKey, testAction, testParams);
 }
 
 /**
@@ -72,6 +164,34 @@ export function resetPluginAvailabilityCache(pluginKey) {
       pluginAvailability[key] = null;
     });
   }
+}
+
+/**
+ * Creates standardized fallback information to include in API responses
+ * 
+ * @param {string} [limitations=null] - Optional description of fallback limitations
+ * @param {boolean} [isLimited=false] - Whether the fallback has functional limitations
+ * @param {string} [requiredPlugin=null] - Optional name of the plugin that would provide full functionality
+ * @returns {object} Standardized fallback information object
+ */
+export function createFallbackInfo(limitations = null, isLimited = false, requiredPlugin = null) {
+  const info = { 
+    fallback_used: true 
+  };
+  
+  if (isLimited) {
+    info.fallback_limited = true;
+  }
+  
+  if (limitations) {
+    info.fallback_limitations = limitations;
+  }
+  
+  if (requiredPlugin) {
+    info.required_plugin = requiredPlugin;
+  }
+  
+  return info;
 }
 
 /**
