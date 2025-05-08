@@ -97,11 +97,38 @@ export function createServer() {
           throw new Error(result.message || 'Unknown error');
         }
       } catch (error) {
+        // Check if it's a 404 error (short URL not found)
+        if (error.response && error.response.status === 404) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({
+                  status: 'error',
+                  message: `The short URL or keyword '${shorturl}' was not found in the database.`,
+                  code: 'not_found'
+                })
+              }
+            ],
+            isError: true
+          };
+        }
+        
+        // For other errors, provide better formatting
+        let errorMessage = error.message;
+        if (error.response && error.response.data && error.response.data.message) {
+          errorMessage = error.response.data.message;
+        }
+        
         return {
           content: [
             {
               type: 'text',
-              text: error.message
+              text: JSON.stringify({
+                status: 'error',
+                message: errorMessage,
+                shorturl: shorturl
+              })
             }
           ],
           isError: true
@@ -201,7 +228,8 @@ export function createServer() {
     },
     async ({ url, keyword, title }) => {
       try {
-        const result = await yourlsClient.shorten(url, keyword, title);
+        // Use the enhanced createCustomUrl method that handles duplicate URLs
+        const result = await yourlsClient.createCustomUrl(url, keyword, title);
         
         if (result.shorturl) {
           return {
@@ -237,11 +265,24 @@ export function createServer() {
           throw new Error(result.message || 'Unknown error');
         }
       } catch (error) {
+        // Provide a more helpful error message
+        let errorMessage = error.message;
+        
+        // If the error contains response data with a message, use that
+        if (error.response && error.response.data && error.response.data.message) {
+          errorMessage = error.response.data.message;
+        }
+        
         return {
           content: [
             {
               type: 'text',
-              text: error.message
+              text: JSON.stringify({
+                status: 'error',
+                message: errorMessage,
+                originalUrl: url,
+                attemptedKeyword: keyword
+              })
             }
           ],
           isError: true

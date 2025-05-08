@@ -115,6 +115,42 @@ export default class YourlsClient {
   }
   
   /**
+   * Create a custom short URL, even if the URL already exists
+   * 
+   * @param {string} url - URL to shorten
+   * @param {string} keyword - Custom keyword
+   * @param {string} [title] - Optional title
+   * @returns {Promise<object>} API response
+   */
+  async createCustomUrl(url, keyword, title) {
+    try {
+      // First try the normal shortening
+      const result = await this.shorten(url, keyword, title);
+      return result;
+    } catch (error) {
+      // If the error is because the URL already exists, we can try with the 'add new' flag
+      if (error.response && 
+          error.response.data && 
+          error.response.data.code === 'error:url' && 
+          error.response.data.url) {
+        
+        // Try again with the 'add new' flag which allows duplicate URLs
+        const params = { 
+          url, 
+          keyword,
+          add: 1  // This tells YOURLS to allow duplicate URLs
+        };
+        if (title) params.title = title;
+        
+        return this.request('shorturl', params);
+      }
+      
+      // For other errors, just throw them
+      throw error;
+    }
+  }
+  
+  /**
    * Expand a short URL
    * 
    * @param {string} shorturl - Short URL or keyword to expand
