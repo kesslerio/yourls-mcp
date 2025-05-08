@@ -1,0 +1,97 @@
+## YOURLS Plugins Integration
+
+YOURLS-MCP is designed to work with both standard YOURLS installations and various plugins, with built-in fallbacks when plugins are not available.
+
+### Required and Recommended Plugins
+
+#### Required Plugins
+
+1. **Force Allow Duplicates**
+   - **Repository**: https://github.com/kesslerio/yourls-force-allow-duplicates
+   - **Purpose**: Enables the creation of multiple short URLs (with different keywords) for the same destination URL
+   - **Functionality**: Uses the `force=1` parameter to bypass the URL uniqueness check in YOURLS
+   - **Installation**: 
+     1. Clone the repository into your YOURLS `user/plugins` directory
+     2. Activate it in the YOURLS admin interface
+   - **Usage**: Add `force=1` to your API requests or use `force_url_modification=false` with the `create_custom_url` tool
+
+#### Recommended Plugins for Enhanced Functionality
+
+2. **API Edit URL**
+   - **Repository**: https://github.com/YOURLS/YOURLS-API-Edit-URL
+   - **Purpose**: Adds API endpoints for advanced URL management operations
+   - **Functionality**: Provides actions for updating URLs, changing keywords, and looking up URLs by their destination
+   - **Methods Used**: `update`, `change_keyword`, `geturl`
+
+3. **API Delete**
+   - **Repository**: https://github.com/YOURLS/YOURLS-API-Delete
+   - **Purpose**: Adds an API endpoint for deleting short URLs
+   - **Functionality**: Provides the `delete` action to remove short URLs from the database
+   - **Methods Used**: `delete`
+
+4. **API Contract**
+   - **Repository**: https://github.com/YOURLS/YOURLS-API-action-contract
+   - **Purpose**: Adds an API endpoint to check if a URL has already been shortened
+   - **Functionality**: Provides the `contract` action to find existing short URLs for a given destination
+   - **Methods Used**: `contract`
+
+5. **API List Extended**
+   - **Repository**: https://github.com/YOURLS/YOURLS-API-action-list-extended
+   - **Purpose**: Enhances the URL listing capabilities of the API
+   - **Functionality**: Extends the `list` action with additional filtering, sorting, and pagination options
+   - **Methods Used**: `list`
+
+6. **YOURLS-IQRCodes**
+   - **Repository**: https://github.com/seandrickson/YOURLS-IQRCodes
+   - **Purpose**: Adds QR code generation capabilities
+   - **Functionality**: Generates QR codes for short URLs, accessible via the `.qr` suffix
+   - **Usage**: Used by the `generateQrCode` method in the API client
+
+7. **API ShortURL Analytics**
+   - **Repository**: https://github.com/cowdee/YOURLS-api-ShortURL-Analytics
+   - **Purpose**: Provides detailed click analytics for short URLs
+   - **Functionality**: Adds the `shorturl_analytics` action to retrieve click data for a specific date range
+   - **Methods Used**: `shorturl_analytics`
+
+### Plugin Installation Instructions
+
+For all plugins:
+1. Download or clone the plugin repository
+2. Place the plugin folder in your YOURLS `user/plugins` directory
+3. Activate the plugin in the YOURLS admin interface
+4. No additional configuration is needed for most plugins
+
+### Fallback Mechanisms
+
+YOURLS-MCP includes intelligent fallbacks for extended functionality when plugins are not installed:
+
+- **API ShortURL Analytics Fallback**: Provides basic click statistics through core YOURLS API
+
+- **API Contract Fallback**: Uses core YOURLS stats API to search for existing URLs with filtering
+
+- **API Edit URL Fallback**: 
+  - For updating URLs: Attempts to re-create the URL with the same keyword
+  - For changing keywords: Creates a new short URL with the new keyword (old one remains)
+  - For getting URL keywords: Uses core YOURLS stats API with filtering
+
+- **API Delete Fallback**: Limited - provides information that deletion requires the plugin
+
+- **API List Extended Fallback**: Uses core YOURLS stats API with client-side sorting and pagination
+
+- **YOURLS-IQRCodes**: No fallback - requires the plugin to be installed
+
+- **ShortShort Compatibility**: Error handling works regardless of whether plugin is installed
+
+- **Force Allow Duplicates Alternative**: If the plugin isn't available, falls back to the URL modification approach
+
+### Fallback Mechanism Details
+
+When a plugin-dependent feature is used but the plugin is not installed:
+
+1. YOURLS-MCP automatically detects missing plugins
+2. Provides appropriate fallback functionality where possible
+3. Includes a `fallback_used: true` attribute in responses when fallbacks are activated
+4. Adds `fallback_limitations` information when the fallback has reduced functionality
+5. For completely unsupported operations, returns informative error messages
+
+This approach ensures that YOURLS-MCP works with as many YOURLS installations as possible, while still providing clear information about enhanced functionality available with plugins.

@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "yourls": {
+      "command": "node",
+      "args": [
+        "/path/to/yourls-mcp/yourls-mcp.js"
+      ],
+      "env": {
+        "YOURLS_API_URL": "https://your-yourls-domain.com/yourls-api.php",
+        "YOURLS_AUTH_METHOD": "signature",
+        "YOURLS_SIGNATURE_TOKEN": "your-secret-signature-token"
+      }
+    }
+  }
+}
