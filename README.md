@@ -60,12 +60,18 @@ pip install -r requirements.txt
    {
      "mcp_servers": {
        "yourls": {
-         "command": ["python", "/path/to/YOURLS-mcp/yourls_mcp/server.py"],
-         "args": ["--config", "/path/to/YOURLS-mcp/config.yaml"]
+         "command": "/full/path/to/python",
+         "args": [
+           "/full/path/to/YOURLS-mcp/yourls_mcp/server.py",
+           "--config",
+           "/full/path/to/YOURLS-mcp/config.yaml"
+         ]
        }
      }
    }
    ```
+   
+   ⚠️ **Important**: Replace `/full/path/to/python` with the actual path to your Python executable (find with `which python3`) and update the other paths to match your system.
 
 ## Usage
 

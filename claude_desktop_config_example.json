@@ -1,8 +1,12 @@
 {
   "mcp_servers": {
     "yourls": {
-      "command": ["python", "/path/to/YOURLS-mcp/yourls_mcp/server.py"],
-      "args": ["--config", "/path/to/YOURLS-mcp/config.yaml"]
+      "command": "python",
+      "args": [
+        "/Users/kesslerio/GDrive/Websites/cursor/python/YOURLS-mcp/yourls_mcp/server.py",
+        "--config",
+        "/Users/kesslerio/GDrive/Websites/cursor/python/YOURLS-mcp/config.yaml"
+      ]
     }
   }
 }

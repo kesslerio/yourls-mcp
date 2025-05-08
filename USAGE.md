@@ -55,12 +55,18 @@ This guide explains how to set up and use the YOURLS-MCP server with Claude Desk
      {
        "mcp_servers": {
          "yourls": {
-           "command": ["python", "/path/to/YOURLS-mcp/yourls_mcp/server.py"],
-           "args": ["--config", "/path/to/YOURLS-mcp/config.yaml"]
+           "command": "/full/path/to/python",
+           "args": [
+             "/full/path/to/YOURLS-mcp/yourls_mcp/server.py",
+             "--config",
+             "/full/path/to/YOURLS-mcp/config.yaml"
+           ]
          }
        }
      }
      ```
+     
+     ⚠️ **Important**: Replace `/full/path/to/python` with the actual path to your Python executable. You can find this with the command `which python3` in your terminal. Also update all file paths to match your system.
 
 3. Restart Claude Desktop.
 
