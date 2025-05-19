@@ -1,0 +1,41 @@
+# Smithery configuration file: https://smithery.ai/docs/build/project-config
+
+startCommand:
+  type: stdio
+  commandFunction:
+    # A JS function that produces the CLI command based on the given config to start the MCP on stdio.
+    |-
+    (config) => ({ command: 'node', args: ['yourls-mcp.js'], env: { YOURLS_API_URL: config.apiUrl, YOURLS_AUTH_METHOD: config.authMethod || 'signature', YOURLS_SIGNATURE_TOKEN: config.signatureToken, YOURLS_USERNAME: config.username || '', YOURLS_PASSWORD: config.password || '', YOURLS_SIGNATURE_TTL: config.signatureTtl ? String(config.signatureTtl) : '43200' } })
+  configSchema:
+    # JSON Schema defining the configuration options for the MCP.
+    type: object
+    required:
+      - apiUrl
+      - signatureToken
+    properties:
+      apiUrl:
+        type: string
+        description: URL to your YOURLS API endpoint (e.g.,
+          https://example.com/yourls-api.php)
+      authMethod:
+        type: string
+        default: signature
+        description: Authentication method (signature or password)
+      signatureToken:
+        type: string
+        description: Secret token for signature-based auth
+      username:
+        type: string
+        description: Username for password-based auth
+      password:
+        type: string
+        description: Password for password-based auth
+      signatureTtl:
+        type: number
+        default: 43200
+        description: Time-to-live for signatures in seconds
+  exampleConfig:
+    apiUrl: https://your-yourls-domain.com/yourls-api.php
+    authMethod: signature
+    signatureToken: your-secret-signature-token
+    signatureTtl: 43200
