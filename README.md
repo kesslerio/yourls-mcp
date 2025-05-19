@@ -1,5 +1,7 @@
 # YOURLS-MCP
 
+[![smithery badge](https://smithery.ai/badge/@kesslerio/yourls-mcp)](https://smithery.ai/server/@kesslerio/yourls-mcp)
+
 A Model Control Protocol (MCP) server for integrating YOURLS URL shortening with Claude Desktop.
 
 **Author:** Martin Kessler
@@ -22,6 +24,15 @@ YOURLS-MCP creates a bridge between [Claude Desktop](https://claude.ai/download)
 
 ### Installation
 
+### Installing via Smithery
+
+To install YOURLS URL Shortener Integration Server for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@kesslerio/yourls-mcp):
+
+```bash
+npx -y @smithery/cli install @kesslerio/yourls-mcp --client claude
+```
+
+### Manual Installation
 ```bash
 # Clone the repository
 git clone https://github.com/kesslerio/yourls-mcp.git
