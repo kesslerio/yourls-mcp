@@ -1,0 +1,35 @@
+# Smithery configuration file: https://smithery.ai/docs/config#smitheryyaml
+
+startCommand:
+  type: stdio
+  configSchema:
+    # JSON Schema defining the configuration options for the MCP
+    type: object
+    required:
+      - YOURLS_URL
+      - YOURLS_SIGNATURE
+    properties:
+      YOURLS_URL:
+        type: string
+        description: "Base URL of your YOURLS installation (e.g., https://yourdomain.com/yourls/)"
+      YOURLS_SIGNATURE:
+        type: string
+        description: "YOURLS signature token for API authentication"
+      YOURLS_USERNAME:
+        type: string
+        description: "YOURLS username (alternative to signature)"
+      YOURLS_PASSWORD:
+        type: string
+        description: "YOURLS password (alternative to signature)"
+  commandFunction: |-
+    (config) => ({
+      command: 'node',
+      args: ['yourls-mcp.js'],
+      env: {
+        YOURLS_URL: config.YOURLS_URL,
+        YOURLS_SIGNATURE: config.YOURLS_SIGNATURE || '',
+        YOURLS_USERNAME: config.YOURLS_USERNAME || '',
+        YOURLS_PASSWORD: config.YOURLS_PASSWORD || '',
+        NODE_ENV: 'production'
+      }
+    })
