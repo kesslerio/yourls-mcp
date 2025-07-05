@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/kesslerio-yourls-mcp-badge.png)](https://mseep.ai/app/kesslerio-yourls-mcp)
+
 # YOURLS-MCP
 
 A Model Control Protocol (MCP) server for integrating YOURLS URL shortening with Claude Desktop.
