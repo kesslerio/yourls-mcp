@@ -27,7 +27,7 @@ function sendJsonRpcError(res, status, message) {
  * @param {Function} options.createMcpServer - Factory returning a fresh McpServer per session
  * @param {Map<string, string>} [options.tokens] - Bearer token to principal map
  * @param {boolean} [options.allowUnauthenticated=false] - Dev-only auth bypass
- * @returns {{app: object, httpServer: object, transports: Map, close: Function}}
+ * @returns {{app: object, httpServer: object, transports: Map<string, {transport: object, principal: string}>, close: Function}}
  */
 export function startHttpServer({
   port = 3133,
@@ -50,13 +50,22 @@ export function startHttpServer({
     const sessionId = req.headers['mcp-session-id'];
     let transport;
 
-    if (sessionId && transports.has(sessionId)) {
-      transport = transports.get(sessionId);
-    } else if (!sessionId && isInitializeRequest(req.body)) {
+    if (sessionId) {
+      const session = transports.get(sessionId);
+      if (!session) {
+        sendJsonRpcError(res, 404, 'Not Found: unknown session ID');
+        return;
+      }
+      if (session.principal !== req.principal) {
+        res.status(403).json({ error: 'forbidden' });
+        return;
+      }
+      transport = session.transport;
+    } else if (isInitializeRequest(req.body)) {
       transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: () => randomUUID(),
         onsessioninitialized: (sid) => {
-          transports.set(sid, transport);
+          transports.set(sid, { transport, principal: req.principal });
         }
       });
 
@@ -82,12 +91,20 @@ export function startHttpServer({
 
   const handleSessionRequest = async (req, res) => {
     const sessionId = req.headers['mcp-session-id'];
-    const transport = sessionId ? transports.get(sessionId) : undefined;
-    if (!transport) {
-      sendJsonRpcError(res, 400, 'Bad Request: invalid or missing session ID');
+    if (!sessionId) {
+      sendJsonRpcError(res, 400, 'Bad Request: missing session ID');
       return;
     }
-    await transport.handleRequest(req, res);
+    const session = transports.get(sessionId);
+    if (!session) {
+      sendJsonRpcError(res, 404, 'Not Found: unknown session ID');
+      return;
+    }
+    if (session.principal !== req.principal) {
+      res.status(403).json({ error: 'forbidden' });
+      return;
+    }
+    await session.transport.handleRequest(req, res);
   };
 
   app.get('/mcp', requireAuth, handleSessionRequest);

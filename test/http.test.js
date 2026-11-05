@@ -8,10 +8,11 @@ import { buildMcpServer, createServer } from '../src/index.js';
 import { loadBearerTokens } from '../src/bearer.js';
 
 const TOKEN = 'test-token-for-http-suite';
+const TOKEN_B = 'second-token-for-http-suite';
 
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'yourls-mcp-http-'));
 const tokensFile = path.join(tmpDir, 'tokens.json');
-fs.writeFileSync(tokensFile, JSON.stringify({ [TOKEN]: 'team-bot' }));
+fs.writeFileSync(tokensFile, JSON.stringify({ [TOKEN]: 'team-bot', [TOKEN_B]: 'other-bot' }));
 
 function mockYourlsClient() {
   return {
@@ -37,8 +38,8 @@ function parseSseMessages(text) {
     .map(line => JSON.parse(line.slice('data:'.length).trim()));
 }
 
-const mcpHeaders = (sessionId) => ({
-  Authorization: `Bearer ${TOKEN}`,
+const mcpHeaders = (sessionId, token = TOKEN) => ({
+  Authorization: `Bearer ${token}`,
   'Content-Type': 'application/json',
   Accept: 'application/json, text/event-stream',
   ...(sessionId ? { 'Mcp-Session-Id': sessionId } : {})
@@ -156,6 +157,27 @@ test('POST /mcp non-initialize request without session returns 400', async () =>
   assert.equal(res.status, 400);
 });
 
+test('GET and DELETE /mcp without a session id return 400', async () => {
+  for (const method of ['GET', 'DELETE']) {
+    const res = await fetch(`${base}/mcp`, { method, headers: mcpHeaders() });
+    assert.equal(res.status, 400, method);
+  }
+});
+
+test('requests with an unknown session id return 404', async () => {
+  for (const method of ['GET', 'DELETE']) {
+    const res = await fetch(`${base}/mcp`, { method, headers: mcpHeaders('no-such-session') });
+    assert.equal(res.status, 404, method);
+  }
+
+  const res = await fetch(`${base}/mcp`, {
+    method: 'POST',
+    headers: mcpHeaders('no-such-session'),
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' })
+  });
+  assert.equal(res.status, 404);
+});
+
 test('initialize + tools/list returns exactly the allowlisted tools', async () => {
   const sessionId = await initializeSession(base);
   const { result } = await rpc(base, sessionId, 'tools/list');
@@ -190,6 +212,28 @@ test('tools/call shorten_url succeeds for a free kebab-case keyword', async () =
   assert.equal(body.shorturl, 'https://s.example/acme-corp-annual');
 });
 
+test('session is bound to the bearer principal that created it', async () => {
+  const sessionId = await initializeSession(base);
+
+  const res = await fetch(`${base}/mcp`, {
+    method: 'POST',
+    headers: mcpHeaders(sessionId, TOKEN_B),
+    body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list' })
+  });
+  assert.equal(res.status, 403);
+  assert.deepEqual(await res.json(), { error: 'forbidden' });
+
+  for (const method of ['GET', 'DELETE']) {
+    const denied = await fetch(`${base}/mcp`, { method, headers: mcpHeaders(sessionId, TOKEN_B) });
+    assert.equal(denied.status, 403, method);
+    assert.deepEqual(await denied.json(), { error: 'forbidden' });
+  }
+
+  // The forbidden DELETE must not have torn the session down
+  const { result } = await rpc(base, sessionId, 'tools/list');
+  assert.ok(result, 'session must still be usable by its owner');
+});
+
 test('tools/call for a non-registered tool fails', async () => {
   const sessionId = await initializeSession(base);
   const res = await fetch(`${base}/mcp`, {
@@ -215,7 +259,7 @@ test('DELETE /mcp tears down the session', async () => {
     headers: mcpHeaders(sessionId),
     body: JSON.stringify({ jsonrpc: '2.0', id: 4, method: 'tools/list' })
   });
-  assert.equal(res.status, 400);
+  assert.equal(res.status, 404);
 });
 
 test('createServer http mode is a hard startup error without bearer tokens', () => {

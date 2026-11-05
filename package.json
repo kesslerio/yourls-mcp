@@ -9,7 +9,7 @@
   },
   "scripts": {
     "start": "node yourls-mcp.js",
-    "test": "node --test \"test/*.test.js\""
+    "test": "node --test test/*.test.js"
   },
   "publishConfig": {
     "access": "public"
