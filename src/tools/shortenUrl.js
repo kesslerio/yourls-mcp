@@ -7,6 +7,9 @@
  */
 import { isShortShortError, createShortShortErrorResponse, createMcpResponse } from '../utils.js';
 
+// Custom keywords must be kebab-case slugs (e.g. "acme-corp-monthly")
+const KEBAB_CASE_KEYWORD = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
 /**
  * Create a URL shortening tool
  * 
@@ -16,7 +19,7 @@ import { isShortShortError, createShortShortErrorResponse, createMcpResponse } f
 export default function createShortenUrlTool(yourlsClient) {
   return {
     name: 'shorten_url',
-    description: 'Shorten a long URL using YOURLS',
+    description: 'Shorten a long URL using YOURLS. For the optional keyword, use business-name slugs in kebab-case (the company name, e.g. "acme-corp"); never use a person\'s name. Prefer suffixes like "-monthly", "-annual", or "-demo" for variants. Keywords must match ^[a-z0-9]+(-[a-z0-9]+)*$ and existing keywords are never overwritten.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -36,6 +39,35 @@ export default function createShortenUrlTool(yourlsClient) {
       required: ['url']
     },
     execute: async ({ url, keyword, title }) => {
+      if (keyword) {
+        if (!KEBAB_CASE_KEYWORD.test(keyword)) {
+          return createMcpResponse(false, {
+            message: `Invalid keyword '${keyword}'. Custom keywords must be kebab-case slugs: lowercase letters and digits separated by single hyphens (e.g. 'acme-corp-monthly').`,
+            code: 'invalid_keyword',
+            keyword: keyword
+          });
+        }
+
+        // Check first whether the keyword already resolves so it is never overwritten
+        let existing = null;
+        try {
+          existing = await yourlsClient.expand(keyword);
+        } catch {
+          // Expansion failure (e.g. keyword not found) means the keyword is free to use
+          existing = null;
+        }
+
+        if (existing && existing.longurl) {
+          return createMcpResponse(false, {
+            message: `The keyword '${keyword}' already exists and points to '${existing.longurl}'. Choose a different keyword; existing keywords are never overwritten.`,
+            code: 'keyword_exists',
+            keyword: keyword,
+            shorturl: existing.shorturl || keyword,
+            longurl: existing.longurl
+          });
+        }
+      }
+
       try {
         const result = await yourlsClient.shorten(url, keyword, title);
         

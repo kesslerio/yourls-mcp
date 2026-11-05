@@ -50,3 +50,22 @@ export function validateConfig(config) {
     throw new Error('Invalid configuration: missing signature token for signature authentication');
   }
 }
+
+/**
+ * Parses a comma-separated tool allowlist (YOURLS_MCP_ALLOWED_TOOLS).
+ *
+ * @param {string|undefined|null} value - Raw env var value
+ * @returns {string[]|null} List of tool names, or null when unset/blank (all tools)
+ */
+export function parseAllowedTools(value) {
+  if (value === undefined || value === null || value.trim() === '') {
+    return null;
+  }
+
+  const names = value
+    .split(',')
+    .map(name => name.trim())
+    .filter(name => name.length > 0);
+
+  return names.length > 0 ? names : null;
+}
