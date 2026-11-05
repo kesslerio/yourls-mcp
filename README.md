@@ -81,6 +81,39 @@ The following environment variables can be set in the Claude Desktop config:
 | `YOURLS_PASSWORD` | Password for password-based auth | - | Yes (if using password auth) |
 | `YOURLS_SIGNATURE_TTL` | Time-to-live for signatures in seconds | 43200 (12 hours) | No |
 
+## HTTP Mode (Team Deployments)
+
+By default `yourls-mcp.js` serves MCP over stdio. Passing `--http` serves
+[Streamable HTTP](https://modelcontextprotocol.io/specification) MCP at `POST/GET/DELETE /mcp`
+instead — every other path returns 404. Sessions are stateful (`Mcp-Session-Id` header).
+
+```bash
+node yourls-mcp.js --http --port 3133 --bind 127.0.0.1
+```
+
+HTTP-only environment variables:
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `YOURLS_MCP_BEARER_TOKENS_FILE` | Path to a JSON file mapping bearer tokens to principals: `{ "<token>": "<principal>" }` | - | Yes, unless unauthenticated mode is enabled |
+| `YOURLS_MCP_ALLOWED_TOOLS` | Comma-separated tool allowlist; only these tools are registered (e.g. `shorten_url,expand_url,url_stats`) | all tools | No |
+| `YOURLS_MCP_ALLOW_UNAUTHENTICATED` | Set to `1` to skip bearer auth (local development only) | - | No |
+
+Requests to `/mcp` without a valid `Authorization: Bearer <token>` header receive `401`.
+If the tokens file is missing, empty, or invalid, the server refuses to start unless
+`YOURLS_MCP_ALLOW_UNAUTHENTICATED=1`.
+
+Example systemd-oriented invocation (secrets belong in an `EnvironmentFile`, not the unit):
+
+```bash
+Environment=YOURLS_API_URL=https://your-yourls-domain.com/yourls-api.php
+Environment=YOURLS_AUTH_METHOD=signature
+EnvironmentFile=/etc/yourls-mcp/yourls.env        # contains YOURLS_SIGNATURE_TOKEN
+Environment=YOURLS_MCP_ALLOWED_TOOLS=shorten_url,expand_url,url_stats
+Environment=YOURLS_MCP_BEARER_TOKENS_FILE=/etc/yourls-mcp/tokens.json
+ExecStart=/usr/bin/node /opt/yourls-mcp/yourls-mcp.js --http --port 3133 --bind 127.0.0.1
+```
+
 ## Available MCP Tools
 
 YOURLS-MCP provides the following tools to Claude:
